@@ -52,6 +52,8 @@ void t.test('apply', async (t) => {
     }
 
     console.error(await readdir(codeSkeleton, { withFileTypes: true }));
+    console.error(await readdir(join(codeSkeleton, "bin"), { withFileTypes: true }));
+    console.error(await readdir(join(codeSkeleton, "lib"), { withFileTypes: true }));
 
     const installDepsResult = await promiseSpawn('npm', ['install', '--no-audit', '--no-fund'], {
       encoding: "utf8",
@@ -69,6 +71,7 @@ void t.test('apply', async (t) => {
     t.equal(packResult.code, 0);
     const packMeta = JSON.parse(packResult.stdout) as { filename: string }[];
     const codeSkeletonTarball = join(codeSkeleton, packMeta[0].filename);
+    console.error(packMeta);
 
     // now we pack our skeleton module
     const skelPackResult = await promiseSpawn('npm', ['pack', '--json'], {
