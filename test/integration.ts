@@ -53,6 +53,7 @@ void t.test('apply', async (t) => {
 
     // pack this project
     const packResult = await promiseSpawn('npm', ['pack', '--json'], {
+      encoding: "utf8",
       shell: true,
       cwd: codeSkeleton,
     });
@@ -62,6 +63,7 @@ void t.test('apply', async (t) => {
 
     // now we pack our skeleton module
     const skelPackResult = await promiseSpawn('npm', ['pack', '--json'], {
+      encoding: "utf8",
       shell: true,
       cwd: skeleton,
     });
@@ -71,6 +73,7 @@ void t.test('apply', async (t) => {
 
     // next, we install code-skeleton itself
     const csInstallResult = await promiseSpawn('npm', ['install', codeSkeletonTarball], {
+      encoding: "utf8",
       shell: true,
       cwd: project,
     });
@@ -78,12 +81,14 @@ void t.test('apply', async (t) => {
 
     // then we install that
     const skelInstallResult = await promiseSpawn('npm', ['install', skeletonTarball], {
+      encoding: "utf8",
       shell: true,
       cwd: project,
     });
     t.equal(skelInstallResult.code, 0);
 
     const spawnResult = await promiseSpawn('npm', ['run', 'apply-skeleton'], {
+      encoding: "utf8",
       shell: true,
       cwd: project,
     });
