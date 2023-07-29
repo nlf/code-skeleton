@@ -51,6 +51,13 @@ void t.test('apply', async (t) => {
       await cp(join(dirname(__dirname), source), join(codeSkeleton, source), { recursive: true });
     }
 
+    const installDepsResult = await promiseSpawn('npm', ['install', '--no-audit', '--no-fund'], {
+      encoding: "utf8",
+      shell: true,
+      cwd: codeSkeleton,
+    });
+    t.equal(installDepsResult.code, 0);
+
     // pack this project
     const packResult = await promiseSpawn('npm', ['pack', '--json'], {
       encoding: "utf8",
@@ -59,7 +66,6 @@ void t.test('apply', async (t) => {
     });
     t.equal(packResult.code, 0);
     const packMeta = JSON.parse(packResult.stdout) as { filename: string }[];
-    console.error(packMeta);
     const codeSkeletonTarball = join(codeSkeleton, packMeta[0].filename);
 
     // now we pack our skeleton module
