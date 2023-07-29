@@ -59,6 +59,7 @@ void t.test('apply', async (t) => {
     });
     t.equal(packResult.code, 0);
     const packMeta = JSON.parse(packResult.stdout) as { filename: string }[];
+    console.error(packMeta);
     const codeSkeletonTarball = join(codeSkeleton, packMeta[0].filename);
 
     // now we pack our skeleton module
