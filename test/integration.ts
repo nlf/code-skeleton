@@ -22,7 +22,7 @@ void t.test('apply', async (t) => {
         'package.json': JSON.stringify({
           name: 'single-copy-target',
           scripts: {
-            'apply-skeleton': 'code-skeleton apply',
+            'apply-skeleton': 'env && code-skeleton apply',
           },
           skeleton: {
             module: 'skeleton-integration',
@@ -79,7 +79,7 @@ void t.test('apply', async (t) => {
     });
     t.equal(csInstallResult.code, 0);
 
-    // then we install that
+    // then we install the skeleton tarball
     const skelInstallResult = await promiseSpawn('npm', ['install', skeletonTarball], {
       encoding: "utf8",
       shell: true,
@@ -93,8 +93,6 @@ void t.test('apply', async (t) => {
       cwd: project,
     });
     t.equal(spawnResult.code, 0);
-    console.error(spawnResult.stdout);
-    console.error(spawnResult.stderr);
 
     const readmeContent = await readFile(join(project, 'README.md'), { encoding: 'utf8' });
     t.equal(readmeContent, 'this is the skeleton readme');
