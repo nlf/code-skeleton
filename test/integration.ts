@@ -93,6 +93,8 @@ void t.test('apply', async (t) => {
       cwd: project,
     });
     t.equal(spawnResult.code, 0);
+    console.error(spawnResult.stdout);
+    console.error(spawnResult.stderr);
 
     const readmeContent = await readFile(join(project, 'README.md'), { encoding: 'utf8' });
     t.equal(readmeContent, 'this is the skeleton readme');
