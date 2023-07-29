@@ -59,6 +59,14 @@ void t.test('apply', async (t) => {
     });
     t.equal(installDepsResult.code, 0);
 
+    const prepareResult = await promiseSpawn('npm', ['run', 'prepack'], {
+      encoding: "utf8",
+      shell: true,
+      cwd: codeSkeleton,
+    });
+    t.equal(prepareResult.code, 0);
+    console.error(prepareResult.stdout);
+
     // pack this project
     const packResult = await promiseSpawn('npm', ['pack', '--json'], {
       encoding: "utf8",
