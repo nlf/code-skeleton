@@ -22,7 +22,7 @@ void t.test('apply', async (t) => {
         'package.json': JSON.stringify({
           name: 'single-copy-target',
           scripts: {
-            'apply-skeleton': 'env && code-skeleton apply',
+            'apply-skeleton': 'ls node_modules/.bin && code-skeleton apply',
           },
           skeleton: {
             module: 'skeleton-integration',
