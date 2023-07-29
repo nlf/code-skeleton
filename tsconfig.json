@@ -1,0 +1,7 @@
+{
+  "extends": "@tsconfig/node18/tsconfig.json",
+  "include": ["**/*.ts", ".eslintrc.js", "jest.config.js"],
+  "compilerOptions": {
+    "typeRoots": ["./node_modules/@types", "./lib/types"]
+  }
+}
