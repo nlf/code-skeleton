@@ -1,4 +1,4 @@
-import { cp, readFile } from 'node:fs/promises';
+import { cp, readdir, readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 
 import promiseSpawn from '@npmcli/promise-spawn';
@@ -50,6 +50,8 @@ void t.test('apply', async (t) => {
     for (const source of ['bin', 'lib', 'package.json', 'tsconfig.json', 'tsconfig.build.json', '.gitignore']) {
       await cp(join(dirname(__dirname), source), join(codeSkeleton, source), { recursive: true });
     }
+
+    console.error(await readdir(codeSkeleton, { withFileTypes: true }));
 
     const installDepsResult = await promiseSpawn('npm', ['install', '--no-audit', '--no-fund'], {
       encoding: "utf8",
