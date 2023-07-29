@@ -1,11 +1,11 @@
-import type { Config } from '../config';
+import type { Config } from "../config";
 
 export interface GeneratorOptions {
   sourcePath?: string;
 }
 
 export interface GeneratorResults {
-  result: 'pass' | 'fail';
+  result: "pass" | "fail";
   messages?: string[];
 }
 
@@ -25,14 +25,14 @@ export abstract class Generator {
 
   pass (...messages: string[]): GeneratorResults {
     return {
-      result: 'pass',
+      result: "pass",
       messages,
     };
   }
 
   fail (...messages: string[]): GeneratorResults {
     return {
-      result: 'fail',
+      result: "fail",
       messages,
     };
   }

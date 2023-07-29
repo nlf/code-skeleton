@@ -1,7 +1,7 @@
-import { readFile, writeFile } from 'node:fs/promises';
-import parseJson, { Indent, Newline } from 'json-parse-even-better-errors';
+import { readFile, writeFile } from "node:fs/promises";
+import parseJson, { Indent, Newline } from "json-parse-even-better-errors";
 
-import { Generator, type GeneratorOptions, type GeneratorResults } from './abstract';
+import { Generator, type GeneratorOptions, type GeneratorResults } from "./abstract";
 
 export interface JsonOptions extends GeneratorOptions {
   set?: Record<string, unknown>;
@@ -13,7 +13,7 @@ export interface JsonOptions extends GeneratorOptions {
 type JsonObject = Record<string, unknown>;
 
 function deepSet (obj: JsonObject, key: string, value: unknown) {
-  const segments: string[] = key.split('.');
+  const segments: string[] = key.split(".");
   // non-null assertion allowed here because we know the result of splitting a string is an array of strings
   // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
   const final = segments.pop()!;
@@ -30,7 +30,7 @@ function deepSet (obj: JsonObject, key: string, value: unknown) {
 }
 
 function deepGet (obj: JsonObject, key: string) {
-  const segments: string[] = key.split('.');
+  const segments: string[] = key.split(".");
   // non-null assertion allowed here because we know the result of splitting a string is an array of strings
   // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
   const final = segments.pop()!;
@@ -50,9 +50,9 @@ export class JsonGenerator extends Generator {
   async apply (targetPath: string): Promise<GeneratorResults> {
     let fileContents;
     try {
-      fileContents = await readFile(targetPath, { encoding: 'utf8' });
+      fileContents = await readFile(targetPath, { encoding: "utf8" });
     } catch (err) {
-      fileContents = '{}';
+      fileContents = "{}";
     }
 
     const parsedContents = parseJson(fileContents);
@@ -102,9 +102,9 @@ export class JsonGenerator extends Generator {
     // eslint disabled for these two lines because the types indicate the values are required,
     // however in practice they do sometimes have a value of undefined
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    const indentString = parsedContents[Indent] ?? '  ';
+    const indentString = parsedContents[Indent] ?? "  ";
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    const newlineString = parsedContents[Newline] ?? '\n';
+    const newlineString = parsedContents[Newline] ?? "\n";
     const stringContents = JSON.stringify(parsedContents, null, indentString)
       .replace(/\n/g, newlineString) + newlineString;
 
@@ -118,22 +118,22 @@ export class JsonGenerator extends Generator {
 
     let fileContents;
     try {
-      fileContents = await readFile(targetPath, { encoding: 'utf8' });
+      fileContents = await readFile(targetPath, { encoding: "utf8" });
     } catch (err) {
       const { code } = err as { code: string };
       // istanbul ignore next - no need to test passthrough errors
-      if (code !== 'ENOENT') {
+      if (code !== "ENOENT") {
         return this.fail(code);
       }
 
-      return this.fail('missing');
+      return this.fail("missing");
     }
 
     let parsedContents;
     try {
       parsedContents = parseJson(fileContents);
     } catch (err) {
-      return this.fail('invalid json');
+      return this.fail("invalid json");
     }
 
     const options = this.options as JsonOptions;

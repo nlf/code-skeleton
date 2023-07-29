@@ -57,7 +57,7 @@ void t.test("can log", async (t) => {
     "foo.json": {
       result: "fail",
       messages: [
-        `"foo" missing`,
+        "\"foo\" missing",
       ],
     },
     "bar.json": {

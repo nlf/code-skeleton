@@ -1,14 +1,14 @@
-import { dirname } from 'node:path';
-import { copyFile, mkdir, readFile } from 'node:fs/promises';
+import { dirname } from "node:path";
+import { copyFile, mkdir, readFile } from "node:fs/promises";
 
-import { Generator, type GeneratorOptions, type GeneratorResults } from './abstract';
+import { Generator, type GeneratorOptions, type GeneratorResults } from "./abstract";
 
 export class CopyGenerator extends Generator {
   constructor (options: GeneratorOptions) {
     super(options);
 
     if (!this.options.sourcePath) {
-      throw new Error('Must specify a source path');
+      throw new Error("Must specify a source path");
     }
   }
 
@@ -33,11 +33,11 @@ export class CopyGenerator extends Generator {
     } catch (err) {
       const { code, message } = err as { code?: string; message: string };
       // istanbul ignore next - no need to test passthrough throws
-      if (code !== 'ENOENT') {
+      if (code !== "ENOENT") {
         return this.fail(code ?? message);
       }
 
-      return this.fail('missing');
+      return this.fail("missing");
     }
 
     // non-null assertion is safe as constructor will throw if sourcePath is unset
@@ -47,6 +47,6 @@ export class CopyGenerator extends Generator {
       return this.pass();
     }
 
-    return this.fail('contents do not match');
+    return this.fail("contents do not match");
   }
 }

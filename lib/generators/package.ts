@@ -1,8 +1,8 @@
-import { dirname } from 'node:path';
-import packageJson from '@npmcli/package-json';
-import semver from 'semver';
+import { dirname } from "node:path";
+import packageJson from "@npmcli/package-json";
+import semver from "semver";
 
-import { Generator, type GeneratorOptions, type GeneratorResults } from './abstract';
+import { Generator, type GeneratorOptions, type GeneratorResults } from "./abstract";
 
 // user inputs
 export interface PackageOptions extends GeneratorOptions {
@@ -41,15 +41,15 @@ interface MutationObjects {
 }
 
 const dependencyProperties = [
-  'dependencies',
-  'devDependencies',
-  'optionalDependencies',
-  'peerDependencies',
+  "dependencies",
+  "devDependencies",
+  "optionalDependencies",
+  "peerDependencies",
 ];
 
 const objectProperties = [
-  'engines',
-  'scripts',
+  "engines",
+  "scripts",
   ...dependencyProperties,
 ];
 
@@ -199,20 +199,20 @@ export class PackageGenerator extends Generator {
 
     if (options.main) {
       if (pkg.content.main !== options.main) {
-        errors.push(`"main" expected to be "${options.main}" but found "${pkg.content.main ?? 'undefined'}"`);
+        errors.push(`"main" expected to be "${options.main}" but found "${pkg.content.main ?? "undefined"}"`);
       }
     }
 
     if (options.license) {
       if (pkg.content.license !== options.license) {
-        errors.push(`"license" expected to be "${options.license}" but found "${pkg.content.license ?? 'undefined'}"`);
+        errors.push(`"license" expected to be "${options.license}" but found "${pkg.content.license ?? "undefined"}"`);
       }
     }
 
     if (options.engines) {
       for (const [key, value] of Object.entries(options.engines)) {
         if (pkg.content.engines?.[key] !== value) {
-          errors.push(`"engines.${key}" expected to be "${value}" but found "${pkg.content.engines?.[key] ?? 'undefined'}"`);
+          errors.push(`"engines.${key}" expected to be "${value}" but found "${pkg.content.engines?.[key] ?? "undefined"}"`);
         }
       }
     }
@@ -234,7 +234,7 @@ export class PackageGenerator extends Generator {
     if (options.scripts) {
       for (const [key, value] of Object.entries(options.scripts)) {
         if (pkg.content.scripts?.[key] !== value) {
-          errors.push(`"scripts.${key}" expected to be "${value}" but found "${pkg.content.scripts?.[key] ?? 'undefined'}"`);
+          errors.push(`"scripts.${key}" expected to be "${value}" but found "${pkg.content.scripts?.[key] ?? "undefined"}"`);
         }
       }
     }

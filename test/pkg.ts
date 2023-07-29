@@ -1,51 +1,51 @@
-import { join } from 'node:path';
-import { readFile } from 'node:fs/promises';
-import t from 'tap';
+import { join } from "node:path";
+import { readFile } from "node:fs/promises";
+import t from "tap";
 
-import { pkg, applySkeleton, verifySkeleton } from '../lib';
-import type { Config } from '../lib/config';
+import { pkg, applySkeleton, verifySkeleton } from "../lib";
+import type { Config } from "../lib/config";
 
-void t.test('can add fields to package.json', async (t) => {
+void t.test("can add fields to package.json", async (t) => {
   const root = t.testdir({
-    'package.json': JSON.stringify({
-      name: 'foo',
-      files: ['/foo'],
-      bundledDependencies: ['bar'],
+    "package.json": JSON.stringify({
+      name: "foo",
+      files: ["/foo"],
+      bundledDependencies: ["bar"],
     }),
   });
 
   const config: Config = {
     path: root,
-    module: 'irrelevant',
+    module: "irrelevant",
     skeleton: {
-      'package.json': pkg({
+      "package.json": pkg({
         engines: {
           node: process.version,
         },
         files: {
-          append: ['/lib', '/bin'],
-          remove: ['/foo'],
+          append: ["/lib", "/bin"],
+          remove: ["/foo"],
         },
-        license: 'MIT',
-        main: 'lib/index.js',
+        license: "MIT",
+        main: "lib/index.js",
         scripts: {
-          test: 'tap',
+          test: "tap",
         },
         bundledDependencies: {
-          append: ['foo'],
-          remove: ['bar'],
+          append: ["foo"],
+          remove: ["bar"],
         },
         dependencies: {
-          foo: '^1.0.0',
+          foo: "^1.0.0",
         },
         devDependencies: {
-          tap: '^16.0.0',
+          tap: "^16.0.0",
         },
         optionalDependencies: {
-          debug: '^4.3.4',
+          debug: "^4.3.4",
         },
         peerDependencies: {
-          once: '^1.4.0',
+          once: "^1.4.0",
         },
         peerDependenciesMeta: {
           once: {
@@ -60,8 +60,8 @@ void t.test('can add fields to package.json', async (t) => {
 
   const initialVerifyResult = await verifySkeleton(config);
   t.hasStrict(initialVerifyResult, {
-    'package.json': {
-      result: 'fail',
+    "package.json": {
+      result: "fail",
       messages: [
         '"main" expected to be "lib/index.js" but found "undefined"',
         '"license" expected to be "MIT" but found "undefined"',
@@ -83,36 +83,36 @@ void t.test('can add fields to package.json', async (t) => {
 
   const applyResult = await applySkeleton(config);
   t.hasStrict(applyResult, {
-    'package.json': {
-      result: 'pass',
+    "package.json": {
+      result: "pass",
     },
   });
 
-  const rawPkg = await readFile(join(root, 'package.json'), { encoding: 'utf8' });
+  const rawPkg = await readFile(join(root, "package.json"), { encoding: "utf8" });
   const actualPkg: unknown = JSON.parse(rawPkg);
   t.same(actualPkg, {
-    name: 'foo',
+    name: "foo",
     engines: {
       node: process.version,
     },
-    files: ['/lib', '/bin'],
-    license: 'MIT',
-    main: 'lib/index.js',
+    files: ["/lib", "/bin"],
+    license: "MIT",
+    main: "lib/index.js",
     scripts: {
-      test: 'tap',
+      test: "tap",
     },
-    bundledDependencies: ['foo'],
+    bundledDependencies: ["foo"],
     dependencies: {
-      foo: '^1.0.0',
+      foo: "^1.0.0",
     },
     devDependencies: {
-      tap: '^16.0.0',
+      tap: "^16.0.0",
     },
     optionalDependencies: {
-      debug: '^4.3.4',
+      debug: "^4.3.4",
     },
     peerDependencies: {
-      once: '^1.4.0',
+      once: "^1.4.0",
     },
     peerDependenciesMeta: {
       once: {
@@ -123,29 +123,29 @@ void t.test('can add fields to package.json', async (t) => {
 
   const secondVerifyResult = await verifySkeleton(config);
   t.hasStrict(secondVerifyResult, {
-    'package.json': {
-      result: 'pass',
+    "package.json": {
+      result: "pass",
     },
   });
 });
 
-void t.test('can remove dependencies', async (t) => {
+void t.test("can remove dependencies", async (t) => {
   const root = t.testdir({
-    'package.json': JSON.stringify({
-      name: 'foo',
+    "package.json": JSON.stringify({
+      name: "foo",
       dependencies: {
-        dep: '^1.0.0',
-        keepDep: '^1.0.0',
+        dep: "^1.0.0",
+        keepDep: "^1.0.0",
       },
-      bundledDependencies: ['dep'],
+      bundledDependencies: ["dep"],
       devDependencies: {
-        dev: '^1.0.0',
+        dev: "^1.0.0",
       },
       optionalDependencies: {
-        opt: '^1.0.0',
+        opt: "^1.0.0",
       },
       peerDependencies: {
-        peer: '^1.0.0',
+        peer: "^1.0.0",
       },
       peerDependenciesMeta: {
         peer: {
@@ -157,14 +157,14 @@ void t.test('can remove dependencies', async (t) => {
 
   const config: Config = {
     path: root,
-    module: 'irrelevant',
+    module: "irrelevant",
     skeleton: {
-      'package.json': pkg({
+      "package.json": pkg({
         removeDependencies: [
-          'dep',
-          'dev',
-          'opt',
-          'peer',
+          "dep",
+          "dev",
+          "opt",
+          "peer",
         ],
       }),
     },
@@ -174,8 +174,8 @@ void t.test('can remove dependencies', async (t) => {
 
   const initialVerifyResult = await verifySkeleton(config);
   t.hasStrict(initialVerifyResult, {
-    'package.json': {
-      result: 'fail',
+    "package.json": {
+      result: "fail",
       messages: [
         '"bundledDependencies" includes unwanted entry "dep"',
         '"dependencies" includes unwanted entry "dep"',
@@ -189,44 +189,44 @@ void t.test('can remove dependencies', async (t) => {
 
   const applyResult = await applySkeleton(config);
   t.hasStrict(applyResult, {
-    'package.json': {
-      result: 'pass',
+    "package.json": {
+      result: "pass",
     },
   });
 
-  const rawPkg = await readFile(join(root, 'package.json'), { encoding: 'utf8' });
+  const rawPkg = await readFile(join(root, "package.json"), { encoding: "utf8" });
   const actualPkg: unknown = JSON.parse(rawPkg);
   t.same(actualPkg, {
-    name: 'foo',
+    name: "foo",
     dependencies: {
-      keepDep: '^1.0.0',
+      keepDep: "^1.0.0",
     },
   });
 
   const secondVerifyResult = await verifySkeleton(config);
   t.hasStrict(secondVerifyResult, {
-    'package.json': {
-      result: 'pass',
+    "package.json": {
+      result: "pass",
     },
   });
 });
 
-void t.test('deps that are not a subset of the requested range are invalid', async (t) => {
+void t.test("deps that are not a subset of the requested range are invalid", async (t) => {
   const root = t.testdir({
-    'package.json': JSON.stringify({
+    "package.json": JSON.stringify({
       dependencies: {
-        debug: '^1.0.0',
+        debug: "^1.0.0",
       },
     }),
   });
 
   const config: Config = {
     path: root,
-    module: 'irrelevant',
+    module: "irrelevant",
     skeleton: {
-      'package.json': pkg({
+      "package.json": pkg({
         dependencies: {
-          debug: '^2.0.0',
+          debug: "^2.0.0",
         },
       }),
     },
@@ -236,8 +236,8 @@ void t.test('deps that are not a subset of the requested range are invalid', asy
 
   const initialVerifyResult = await verifySkeleton(config);
   t.hasStrict(initialVerifyResult, {
-    'package.json': {
-      result: 'fail',
+    "package.json": {
+      result: "fail",
       messages: [
         '"dependencies.debug" expected to be a subset of "^2.0.0" but found "^1.0.0"',
       ],
@@ -246,32 +246,32 @@ void t.test('deps that are not a subset of the requested range are invalid', asy
 
   const applyResult = await applySkeleton(config);
   t.hasStrict(applyResult, {
-    'package.json': {
-      result: 'pass',
+    "package.json": {
+      result: "pass",
     },
   });
 
-  const rawPkg = await readFile(join(root, 'package.json'), { encoding: 'utf8' });
+  const rawPkg = await readFile(join(root, "package.json"), { encoding: "utf8" });
   const pkgJson: unknown = JSON.parse(rawPkg);
   t.same(pkgJson, {
     dependencies: {
-      debug: '^2.0.0',
+      debug: "^2.0.0",
     },
   });
 
   const secondVerifyResult = await verifySkeleton(config);
   t.hasStrict(secondVerifyResult, {
-    'package.json': {
-      result: 'pass',
+    "package.json": {
+      result: "pass",
     },
   });
 });
 
-void t.test('can set peerDependenciesMeta to optional', async (t) => {
+void t.test("can set peerDependenciesMeta to optional", async (t) => {
   const root = t.testdir({
-    'package.json': JSON.stringify({
+    "package.json": JSON.stringify({
       peerDependencies: {
-        foo: '^1.0.0',
+        foo: "^1.0.0",
       },
       peerDependenciesMeta: {
         bar: {
@@ -283,9 +283,9 @@ void t.test('can set peerDependenciesMeta to optional', async (t) => {
 
   const config: Config = {
     path: root,
-    module: 'irrelevant',
+    module: "irrelevant",
     skeleton: {
-      'package.json': pkg({
+      "package.json": pkg({
         peerDependenciesMeta: {
           foo: {
             optional: true,
@@ -302,8 +302,8 @@ void t.test('can set peerDependenciesMeta to optional', async (t) => {
 
   const initialVerifyResult = await verifySkeleton(config);
   t.hasStrict(initialVerifyResult, {
-    'package.json': {
-      result: 'fail',
+    "package.json": {
+      result: "fail",
       messages: [
         '"peerDependenciesMeta" is missing expected entry "foo"',
         '"peerDependenciesMeta.bar.optional" expected to be "true" but found "false"',
@@ -312,18 +312,18 @@ void t.test('can set peerDependenciesMeta to optional', async (t) => {
   });
 });
 
-void t.test('empty object properties are removed', async (t) => {
+void t.test("empty object properties are removed", async (t) => {
   const root = t.testdir({
-    'package.json': JSON.stringify({
-      name: 'foo',
+    "package.json": JSON.stringify({
+      name: "foo",
     }),
   });
 
   const config: Config = {
     path: root,
-    module: 'irrelevant',
+    module: "irrelevant",
     skeleton: {
-      'package.json': pkg({
+      "package.json": pkg({
         scripts: {},
         peerDependenciesMeta: {},
       }),
@@ -334,38 +334,38 @@ void t.test('empty object properties are removed', async (t) => {
 
   const verifyResult = await verifySkeleton(config);
   t.hasStrict(verifyResult, {
-    'package.json': {
+    "package.json": {
       // verify passes because the object is empty and should be
-      result: 'pass',
+      result: "pass",
     },
   });
 
   const applyResult = await applySkeleton(config);
   t.hasStrict(applyResult, {
-    'package.json': {
-      result: 'pass',
+    "package.json": {
+      result: "pass",
     },
   });
 
-  const rawPkg = await readFile(join(root, 'package.json'), { encoding: 'utf8' });
+  const rawPkg = await readFile(join(root, "package.json"), { encoding: "utf8" });
   const pkgJson: unknown = JSON.parse(rawPkg);
   t.same(pkgJson, {
-    name: 'foo',
+    name: "foo",
   });
 });
 
-void t.test('empty array properties get removed', async (t) => {
+void t.test("empty array properties get removed", async (t) => {
   const root = t.testdir({
-    'package.json': JSON.stringify({
-      name: 'foo',
+    "package.json": JSON.stringify({
+      name: "foo",
     }),
   });
 
   const config: Config = {
     path: root,
-    module: 'irrelevant',
+    module: "irrelevant",
     skeleton: {
-      'package.json': pkg({
+      "package.json": pkg({
         bundledDependencies: {},
         files: {},
       }),
@@ -376,39 +376,39 @@ void t.test('empty array properties get removed', async (t) => {
 
   const verifyResult = await verifySkeleton(config);
   t.hasStrict(verifyResult, {
-    'package.json': {
+    "package.json": {
       // verify passes because the object is empty and should be
-      result: 'pass',
+      result: "pass",
     },
   });
 
   const applyResult = await applySkeleton(config);
   t.hasStrict(applyResult, {
-    'package.json': {
-      result: 'pass',
+    "package.json": {
+      result: "pass",
     },
   });
 
-  const rawPkg = await readFile(join(root, 'package.json'), { encoding: 'utf8' });
+  const rawPkg = await readFile(join(root, "package.json"), { encoding: "utf8" });
   const pkgJson: unknown = JSON.parse(rawPkg);
   t.same(pkgJson, {
-    name: 'foo',
+    name: "foo",
   });
 });
 
-void t.test('removeDependencies works when no bundledDeps are present', async (t) => {
+void t.test("removeDependencies works when no bundledDeps are present", async (t) => {
   const root = t.testdir({
-    'package.json': JSON.stringify({
-      name: 'foo',
+    "package.json": JSON.stringify({
+      name: "foo",
     }),
   });
 
   const config: Config = {
     path: root,
-    module: 'irrelevant',
+    module: "irrelevant",
     skeleton: {
-      'package.json': pkg({
-        removeDependencies: ['bar'],
+      "package.json": pkg({
+        removeDependencies: ["bar"],
       }),
     },
     variables: {},
@@ -417,38 +417,38 @@ void t.test('removeDependencies works when no bundledDeps are present', async (t
 
   const verifyResult = await verifySkeleton(config);
   t.hasStrict(verifyResult, {
-    'package.json': {
+    "package.json": {
       // verify passes because the object is empty and should be
-      result: 'pass',
+      result: "pass",
     },
   });
 
   const applyResult = await applySkeleton(config);
   t.hasStrict(applyResult, {
-    'package.json': {
-      result: 'pass',
+    "package.json": {
+      result: "pass",
     },
   });
 
-  const rawPkg = await readFile(join(root, 'package.json'), { encoding: 'utf8' });
+  const rawPkg = await readFile(join(root, "package.json"), { encoding: "utf8" });
   const pkgJson: unknown = JSON.parse(rawPkg);
   t.same(pkgJson, {
-    name: 'foo',
+    name: "foo",
   });
 });
 
-void t.test('removeDependencies prunes peerDependenciesMeta and bundledDependencies', async (t) => {
+void t.test("removeDependencies prunes peerDependenciesMeta and bundledDependencies", async (t) => {
   const root = t.testdir({
-    'package.json': JSON.stringify({
-      name: 'foo',
+    "package.json": JSON.stringify({
+      name: "foo",
       dependencies: {
-        bap: '^1.0.0',
-        bar: '^1.0.0',
+        bap: "^1.0.0",
+        bar: "^1.0.0",
       },
-      bundledDependencies: ['bap', 'bar'],
+      bundledDependencies: ["bap", "bar"],
       peerDependencies: {
-        baz: '^1.0.0',
-        buzz: '^1.0.0',
+        baz: "^1.0.0",
+        buzz: "^1.0.0",
       },
       peerDependenciesMeta: {
         baz: {
@@ -463,10 +463,10 @@ void t.test('removeDependencies prunes peerDependenciesMeta and bundledDependenc
 
   const config: Config = {
     path: root,
-    module: 'irrelevant',
+    module: "irrelevant",
     skeleton: {
-      'package.json': pkg({
-        removeDependencies: ['bar', 'baz'],
+      "package.json": pkg({
+        removeDependencies: ["bar", "baz"],
       }),
     },
     variables: {},
@@ -475,8 +475,8 @@ void t.test('removeDependencies prunes peerDependenciesMeta and bundledDependenc
 
   const verifyResult = await verifySkeleton(config);
   t.hasStrict(verifyResult, {
-    'package.json': {
-      result: 'fail',
+    "package.json": {
+      result: "fail",
       messages: [
         '"bundledDependencies" includes unwanted entry "bar"',
         '"dependencies" includes unwanted entry "bar"',
@@ -488,21 +488,21 @@ void t.test('removeDependencies prunes peerDependenciesMeta and bundledDependenc
 
   const applyResult = await applySkeleton(config);
   t.hasStrict(applyResult, {
-    'package.json': {
-      result: 'pass',
+    "package.json": {
+      result: "pass",
     },
   });
 
-  const rawPkg = await readFile(join(root, 'package.json'), { encoding: 'utf8' });
+  const rawPkg = await readFile(join(root, "package.json"), { encoding: "utf8" });
   const pkgJson: unknown = JSON.parse(rawPkg);
   t.same(pkgJson, {
-    name: 'foo',
+    name: "foo",
     dependencies: {
-      bap: '^1.0.0',
+      bap: "^1.0.0",
     },
-    bundledDependencies: ['bap'],
+    bundledDependencies: ["bap"],
     peerDependencies: {
-      buzz: '^1.0.0',
+      buzz: "^1.0.0",
     },
     peerDependenciesMeta: {
       buzz: {
@@ -512,20 +512,20 @@ void t.test('removeDependencies prunes peerDependenciesMeta and bundledDependenc
   });
 });
 
-void t.test('correctly identifies missing files property', async (t) => {
+void t.test("correctly identifies missing files property", async (t) => {
   const root = t.testdir({
-    'package.json': JSON.stringify({
-      name: 'foo',
+    "package.json": JSON.stringify({
+      name: "foo",
     }),
   });
 
   const config: Config = {
     path: root,
-    module: 'irrelevant',
+    module: "irrelevant",
     skeleton: {
-      'package.json': pkg({
+      "package.json": pkg({
         files: {
-          append: ['foo'],
+          append: ["foo"],
         },
       }),
     },
@@ -535,8 +535,8 @@ void t.test('correctly identifies missing files property', async (t) => {
 
   const verifyResult = await verifySkeleton(config);
   t.hasStrict(verifyResult, {
-    'package.json': {
-      result: 'fail',
+    "package.json": {
+      result: "fail",
       messages: [
         '"files" is missing expected entry "foo"',
       ],

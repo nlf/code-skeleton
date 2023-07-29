@@ -1,6 +1,6 @@
 module "json-parse-even-better-errors" {
-  export const Indent = Symbol.for('indent');
-  export const Newline = Symbol.for('newline');
+  export const Indent = Symbol.for("indent");
+  export const Newline = Symbol.for("newline");
 
   interface JsonResult {
     [Indent]: string;
