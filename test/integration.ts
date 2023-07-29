@@ -1,5 +1,6 @@
 import { cp, readdir, readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
+import { inspect } from 'node:util';
 
 import promiseSpawn from '@npmcli/promise-spawn';
 import t from 'tap';
@@ -71,7 +72,7 @@ void t.test('apply', async (t) => {
     t.equal(packResult.code, 0);
     const packMeta = JSON.parse(packResult.stdout) as { filename: string }[];
     const codeSkeletonTarball = join(codeSkeleton, packMeta[0].filename);
-    console.error(packMeta);
+    console.error(inspect(packMeta, { depth: null }));
 
     // now we pack our skeleton module
     const skelPackResult = await promiseSpawn('npm', ['pack', '--json'], {
