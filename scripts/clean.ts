@@ -1,4 +1,5 @@
 #!/usr/bin/env ts-node
+// This file is managed by code-skeleton. Do not make changes.
 
 import { rmSync } from "node:fs";
 import { dirname, join } from "node:path";

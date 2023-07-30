@@ -1,4 +1,5 @@
 /* eslint-env node */
+// This file is managed by code-skeleton. Do not make changes.
 module.exports = {
   extends: [
     "eslint:recommended",

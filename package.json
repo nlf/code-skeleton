@@ -12,7 +12,10 @@
     "lint": "eslint .",
     "prepack": "tsc --project tsconfig.build.json",
     "test": "tap",
-    "posttest": "npm run lint"
+    "posttest": "npm run lint",
+    "postlint": "npm run skeleton:verify",
+    "skeleton:apply": "./bin/code-skeleton.ts apply",
+    "skeleton:verify": "./bin/code-skeleton.ts verify"
   },
   "files": [
     "bin/**/*.js",
@@ -25,6 +28,7 @@
   "author": "Nathan LaFreniere <nlf@nlf.sh>",
   "license": "ISC",
   "devDependencies": {
+    "@code4rena/skeleton": "1.0.1",
     "@tsconfig/node18": "^2.0.1",
     "@types/color-support": "^1.1.1",
     "@types/node": "^18.16.16",
@@ -53,5 +57,12 @@
     "read-package-json-fast": "^3.0.2",
     "semver": "^7.5.4",
     "yargs": "^17.7.2"
+  },
+  "skeleton": {
+    "module": "@code4rena/skeleton",
+    "variables": {
+      "dogfood": true,
+      "library": true
+    }
   }
 }
