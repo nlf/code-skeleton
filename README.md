@@ -28,16 +28,21 @@ export default async function (root: string, variables: object) {
 }
 ```
 
+Make sure to add `code-skeleton` as a peer dependency of your skeleton:
+
+```shell
+> npm install --save-peer code-skeleton
+```
+
 When applied the above skeleton would copy `sourceFile` to `targetFile`, ensure that the `"extends"` key of `tsconfig.json` is equal to the value `"@tsconfig/node18"`, and ensure that the `test` script in `package.json` is set to `"tap"`.
 
 The skeleton must be published to npm. To consume the skeleton:
 
 ```shell
-> npm i -D code-skeleton
 # --save-exact facilitates keeping your template current via dependabot and is highly recommended
 > npm i -D --save-exact your-skeleton-module
 > npm pkg set skeleton.module=your-skeleton-module
-> npx code-skeleton apply # or "verify"
+> npx code-skeleton apply
 ```
 
 ### Generators
