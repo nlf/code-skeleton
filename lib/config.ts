@@ -27,6 +27,7 @@ export type SkeletonFactory = Record<string, (root: string, variables: object) =
 
 export interface Flags {
   verbose?: boolean;
+  silent?: boolean;
 }
 
 export async function getPackageConfig (from: string, flags: Flags = {}): Promise<Config> {

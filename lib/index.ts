@@ -20,37 +20,50 @@ export {
   Skeleton,
 } from "./config";
 
+function log (message: string, config: Config) {
+  if (config.flags.silent !== true) {
+    console.log(message);
+  }
+}
+
+function logVerbose (message: string, config: Config) {
+  if (config.flags.verbose) {
+    log(message, config);
+  }
+}
+
+function logGroup (message: string, config: Config) {
+  if (config.flags.silent !== true) {
+    console.group(message);
+    return console.groupEnd;
+  }
+
+  // rule disabled, we want an empty function here
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
+  return () => {};
+}
+
 export async function applySkeleton (config: Config) {
   const result = {
     exitCode: 0,
   } as SkeletonResults;
 
-  if (config.flags.verbose) {
-    console.group("applying skeleton...");
-  }
-
+  const applyEnd = logGroup(`applying skeleton "${config.module}"`, config);
   for (const [targetPath, generator] of Object.entries(config.skeleton)) {
     result[targetPath] = await generator.apply(join(config.path, targetPath), config);
     if (result[targetPath].result !== "pass") {
+      const fileEnd = logGroup(`${targetPath}: ${ansiColors.red("FAILED")}`, config);
       result.exitCode = 1;
-      // istanbul ignore else - no need to cover not logging
-      if (config.flags.verbose) {
-        console.group(`${targetPath}: ${ansiColors.red("FAILED")}`);
-        // coverage disabled, field is optional
-        for (const message of result[targetPath].messages ?? /* istanbul ignore next */ []) {
-          console.log(message);
-        }
-        console.groupEnd();
+      // coverage disabled, messages field is optional
+      for (const message of result[targetPath].messages ?? /* istanbul ignore next */ []) {
+        logVerbose(message, config);
       }
+      fileEnd();
     } else {
-      // istanbul ignore else - no need to cover not logging
-      if (config.flags.verbose) {
-        console.log(`${targetPath}: ${ansiColors.green("OK")}`);
-      }
+      log(`${targetPath}: ${ansiColors.green("OK")}`, config);
     }
   }
-
-  console.groupEnd();
+  applyEnd();
 
   return result;
 }
@@ -60,32 +73,22 @@ export async function verifySkeleton (config: Config) {
     exitCode: 0,
   } as SkeletonResults;
 
-  if (config.flags.verbose) {
-    console.group("verifying skeleton...");
-  }
-
+  const verifyEnd = logGroup(`verifying skeleton "${config.module}"`, config);
   for (const [targetPath, generator] of Object.entries(config.skeleton)) {
     result[targetPath] = await generator.verify(join(config.path, targetPath), config);
     if (result[targetPath].result !== "pass") {
+      const fileEnd = logGroup(`${targetPath}: ${ansiColors.red("FAILED")}`, config);
       result.exitCode = 1;
-      // istanbul ignore else - no need to cover not logging
-      if (config.flags.verbose) {
-        console.group(`${targetPath}: ${ansiColors.red("FAILED")}`);
-        // coverage disabled, field is optional
-        for (const message of result[targetPath].messages ?? /* istanbul ignore next */ []) {
-          console.log(message);
-        }
-        console.groupEnd();
+      // coverage disabled, messages field is optional
+      for (const message of result[targetPath].messages ?? /* istanbul ignore next */ []) {
+        logVerbose(message, config);
       }
+      fileEnd();
     } else {
-      // istanbul ignore else - no need to cover not logging
-      if (config.flags.verbose) {
-        console.log(`${targetPath}: ${ansiColors.green("OK")}`);
-      }
+      log(`${targetPath}: ${ansiColors.green("OK")}`, config);
     }
   }
-
-  console.groupEnd();
+  verifyEnd();
 
   return result;
 }

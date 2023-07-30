@@ -55,7 +55,9 @@ void t.test("can add fields to package.json", async (t) => {
       }),
     },
     variables: {},
-    flags: {},
+    flags: {
+      silent: true,
+    },
   };
 
   const initialVerifyResult = await verifySkeleton(config);
@@ -169,7 +171,9 @@ void t.test("can remove dependencies", async (t) => {
       }),
     },
     variables: {},
-    flags: {},
+    flags: {
+      silent: true,
+    },
   };
 
   const initialVerifyResult = await verifySkeleton(config);
@@ -231,7 +235,9 @@ void t.test("deps that are not a subset of the requested range are invalid", asy
       }),
     },
     variables: {},
-    flags: {},
+    flags: {
+      silent: true,
+    },
   };
 
   const initialVerifyResult = await verifySkeleton(config);
@@ -297,7 +303,9 @@ void t.test("can set peerDependenciesMeta to optional", async (t) => {
       }),
     },
     variables: {},
-    flags: {},
+    flags: {
+      silent: true,
+    },
   };
 
   const initialVerifyResult = await verifySkeleton(config);
@@ -329,7 +337,9 @@ void t.test("empty object properties are removed", async (t) => {
       }),
     },
     variables: {},
-    flags: {},
+    flags: {
+      silent: true,
+    },
   };
 
   const verifyResult = await verifySkeleton(config);
@@ -371,7 +381,9 @@ void t.test("empty array properties get removed", async (t) => {
       }),
     },
     variables: {},
-    flags: {},
+    flags: {
+      silent: true,
+    },
   };
 
   const verifyResult = await verifySkeleton(config);
@@ -412,7 +424,9 @@ void t.test("removeDependencies works when no bundledDeps are present", async (t
       }),
     },
     variables: {},
-    flags: {},
+    flags: {
+      silent: true,
+    },
   };
 
   const verifyResult = await verifySkeleton(config);
@@ -470,7 +484,9 @@ void t.test("removeDependencies prunes peerDependenciesMeta and bundledDependenc
       }),
     },
     variables: {},
-    flags: {},
+    flags: {
+      silent: true,
+    },
   };
 
   const verifyResult = await verifySkeleton(config);
@@ -530,7 +546,9 @@ void t.test("correctly identifies missing files property", async (t) => {
       }),
     },
     variables: {},
-    flags: {},
+    flags: {
+      silent: true,
+    },
   };
 
   const verifyResult = await verifySkeleton(config);

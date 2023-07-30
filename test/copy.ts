@@ -29,7 +29,9 @@ void t.test("can copy a file", async (t) => {
       "README.md": copy(join(sourcePath, "README.md")),
     },
     variables: {},
-    flags: {},
+    flags: {
+      silent: true,
+    },
   };
 
   const initialVerifyResult = await verifySkeleton(config);
@@ -37,7 +39,7 @@ void t.test("can copy a file", async (t) => {
   t.hasStrict(initialVerifyResult, {
     "README.md": {
       result: "fail",
-      messages: ["missing"],
+      messages: ["file missing"],
     },
   });
 
@@ -94,7 +96,9 @@ void t.test("surfaces errors", async (t) => {
       "README.txt": copy(join(sourcePath, "README.txt")),
     },
     variables: {},
-    flags: {},
+    flags: {
+      silent: true,
+    },
   };
 
   const verifyResult = await verifySkeleton(config);

@@ -126,7 +126,7 @@ export class JsonGenerator extends Generator {
         return this.fail(code);
       }
 
-      return this.fail("missing");
+      return this.fail("file missing");
     }
 
     let parsedContents;

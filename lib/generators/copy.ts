@@ -37,7 +37,7 @@ export class CopyGenerator extends Generator {
         return this.fail(code ?? message);
       }
 
-      return this.fail("missing");
+      return this.fail("file missing");
     }
 
     // non-null assertion is safe as constructor will throw if sourcePath is unset

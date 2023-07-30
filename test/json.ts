@@ -45,7 +45,9 @@ void t.test("can modify json", async (t) => {
       }),
     },
     variables: {},
-    flags: {},
+    flags: {
+      silent: true,
+    },
   };
 
   const initialVerifyResult = await verifySkeleton(config);
@@ -57,7 +59,7 @@ void t.test("can modify json", async (t) => {
     },
     "extra.json": {
       result: "fail",
-      messages: ["missing"],
+      messages: ["file missing"],
     },
   });
 
@@ -113,7 +115,9 @@ void t.test("unparseable json shows as invalid", async (t) => {
       "foo.json": json({ set: { foo: "bar" } }),
     },
     variables: {},
-    flags: {},
+    flags: {
+      silent: true,
+    },
   };
 
   const result = await verifySkeleton(config);
@@ -137,7 +141,9 @@ void t.test("missing property shows as invalid", async (t) => {
       "foo.json": json({ set: { foo: "bar" } }),
     },
     variables: {},
-    flags: {},
+    flags: {
+      silent: true,
+    },
   };
 
   const result = await verifySkeleton(config);
@@ -161,7 +167,9 @@ void t.test("a deleted key being present is invalid", async (t) => {
       "foo.json": json({ delete: ["foo"] }),
     },
     variables: {},
-    flags: {},
+    flags: {
+      silent: true,
+    },
   };
 
   const result = await verifySkeleton(config);
@@ -207,7 +215,9 @@ void t.test("can set a deep key", async (t) => {
       }),
     },
     variables: {},
-    flags: {},
+    flags: {
+      silent: true,
+    },
   };
 
   const verifyResult = await verifySkeleton(config);
