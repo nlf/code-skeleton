@@ -50,7 +50,6 @@ const dependencyProperties = [
 const objectProperties = [
   "engines",
   "scripts",
-  ...dependencyProperties,
 ];
 
 // rest of the object passed to packageJson.update()
@@ -81,10 +80,6 @@ export class PackageGenerator extends Generator {
     for (const _field of objectProperties) {
       const field = _field as keyof MutationObjects;
       if (options[field]) {
-        if (dependencyProperties.includes(_field)) {
-          dependenciesModified = true;
-        }
-
         const value = {
           ...pkg.content[field],
           ...options[field],
@@ -92,6 +87,31 @@ export class PackageGenerator extends Generator {
 
         if (Object.keys(value).length > 0) {
           updateRequest[field] = value;
+        }
+      }
+    }
+
+    for (const _field of dependencyProperties) {
+      const field = _field as keyof MutationObjects;
+      if (options[field]) {
+        const deps: Record<string, string> = {
+          ...pkg.content[field],
+        };
+
+        for (const [name, range] of Object.entries(options[field] as object)) {
+          // if the dependency is already present in the package.json, and the
+          // semver range that is set is a subset of the one requested by the
+          // skeleton, then we leave it alone
+          if (name in deps && semver.subset(deps[name], range as string)) {
+            continue;
+          }
+
+          dependenciesModified = true;
+          deps[name] = range as string;
+        }
+
+        if (dependenciesModified) {
+          updateRequest[field] = deps;
         }
       }
     }
@@ -258,7 +278,11 @@ export class PackageGenerator extends Generator {
         // non-null assertion is safe because we check for truthiness above
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         for (const [key, value] of Object.entries(options[field]!)) {
-          if (!(key in (pkg.content[field] ?? {}))) {
+          const deps = {
+            ...pkg.content[field],
+          };
+
+          if (!(key in deps)) {
             errors.push(`"${field}" is missing expected entry "${key}"`);
           } else {
             // non-null assertion is safe because the previous condition handles the cases

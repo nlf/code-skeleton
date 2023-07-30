@@ -573,3 +573,107 @@ void t.test("correctly identifies missing files property", async (t) => {
     },
   });
 });
+
+void t.test("leaves dependencies that are already a subset of the request alone", async (t) => {
+  const root = t.testdir({
+    "package.json": JSON.stringify({
+      name: "foo",
+      dependencies: {
+        "hereandvalid": "^2.5.0",
+        "hereandinvalid": "^1.0.0",
+      },
+    }),
+  });
+
+  const config: Config = {
+    path: root,
+    module: "irrelevant",
+    skeleton: {
+      "package.json": pkg({
+        dependencies: {
+          hereandvalid: "^2.0.0",
+          hereandinvalid: "^2.0.0",
+          missing: "^1.0.0",
+        },
+      }),
+    },
+    variables: {},
+    flags: {
+      silent: true,
+    },
+  };
+
+  const initialVerifyResult = await verifySkeleton(config);
+  t.hasStrict(initialVerifyResult, {
+    "package.json": {
+      result: "fail",
+      messages: [
+        "\"dependencies.hereandinvalid\" expected to be a subset of \"^2.0.0\" but found \"^1.0.0\"",
+        "\"dependencies\" is missing expected entry \"missing\"",
+      ],
+    },
+  });
+
+  const applyResult = await applySkeleton(config);
+  t.hasStrict(applyResult, {
+    "package.json": {
+      result: "pass",
+      messages: [
+        "one or more changes were made to your project's dependencies, make sure to run `npm install`",
+      ],
+    },
+  });
+
+  const actualContents = await readFile(join(root, "package.json"), { encoding: "utf8" });
+  const actualPkg: unknown = JSON.parse(actualContents);
+  t.same(actualPkg, {
+    name: "foo",
+    dependencies: {
+      "hereandvalid": "^2.5.0",
+      "hereandinvalid": "^2.0.0",
+      "missing": "^1.0.0",
+    },
+  });
+});
+
+void t.test("does not tell user to run npm install if no deps change", async (t) => {
+  const root = t.testdir({
+    "package.json": JSON.stringify({
+      name: "foo",
+      dependencies: {
+        "foo": "^1.5.0",
+      },
+    }),
+  });
+
+  const config: Config = {
+    path: root,
+    module: "irrelevant",
+    skeleton: {
+      "package.json": pkg({
+        dependencies: {
+          foo: "^1.0.0",
+        },
+      }),
+    },
+    variables: {},
+    flags: {
+      silent: true,
+    },
+  };
+
+  const verifyResult = await verifySkeleton(config);
+  t.hasStrict(verifyResult, {
+    "package.json": {
+      result: "pass",
+    },
+  });
+
+  const applyResult = await applySkeleton(config);
+  t.hasStrict(applyResult, {
+    "package.json": {
+      result: "pass",
+    },
+  });
+  t.equal(applyResult["package.json"].messages?.length, 0);
+});
