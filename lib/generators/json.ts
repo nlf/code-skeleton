@@ -1,4 +1,5 @@
 import { readFile, writeFile } from "node:fs/promises";
+import { isDeepStrictEqual } from "node:util";
 import parseJson, { Indent, Newline } from "json-parse-even-better-errors";
 
 import { Generator, type GeneratorOptions, type GeneratorResults } from "./abstract";
@@ -76,9 +77,14 @@ export class JsonGenerator extends Generator {
     // istanbul ignore else - don't care
     if (options.append) {
       for (const [key, values] of Object.entries(options.append)) {
-        const arrayContents = (deepGet(parsedContents, key) ?? []) as unknown[];
+        const existingField = deepGet(parsedContents, key);
+        const arrayContents: unknown[] = existingField && Array.isArray(existingField)
+          ? existingField
+          : [];
+
         for (const value of values) {
-          if (!arrayContents.includes(value)) {
+          const existingMatch = arrayContents.find((item) => isDeepStrictEqual(value, item));
+          if (!existingMatch) {
             arrayContents.push(value);
           }
         }
@@ -89,10 +95,15 @@ export class JsonGenerator extends Generator {
     // istanbul ignore else - don't care
     if (options.remove) {
       for (const [key, values] of Object.entries(options.remove)) {
-        const arrayContents = (deepGet(parsedContents, key) ?? []) as unknown[];
+        const existingField = deepGet(parsedContents, key);
+        const arrayContents: unknown[] = existingField && Array.isArray(existingField)
+          ? existingField
+          : [];
+
         for (const value of values) {
-          if (arrayContents.includes(value)) {
-            arrayContents.splice(arrayContents.indexOf(value), 1);
+          const existingMatch = arrayContents.find((item) => isDeepStrictEqual(value, item));
+          if (existingMatch) {
+            arrayContents.splice(arrayContents.indexOf(existingMatch), 1);
           }
         }
         deepSet(parsedContents, key, arrayContents);
@@ -158,10 +169,17 @@ export class JsonGenerator extends Generator {
     
     if (options.append) {
       for (const [key, values] of Object.entries(options.append)) {
-        const arrayContents = (deepGet(parsedContents, key) ?? []) as string[];
+        const existingField = deepGet(parsedContents, key);
+        if (!existingField || !Array.isArray(existingField)) {
+          failures.push(`"${key}" is expected to be an array`);
+          continue;
+        }
+
+        const arrayContents: unknown[] = existingField;
         for (const value of values) {
-          if (!arrayContents.includes(value as string)) {
-            failures.push(`"${key}" is missing expected value "${value as string}"`);
+          const existingMatch = arrayContents.find((item) => isDeepStrictEqual(value, item));
+          if (!existingMatch) {
+            failures.push(`"${key}" is missing expected value ${JSON.stringify(value)}`);
           }
         }
       }
@@ -169,9 +187,16 @@ export class JsonGenerator extends Generator {
 
     if (options.remove) {
       for (const [key, values] of Object.entries(options.remove)) {
-        const arrayContents = (deepGet(parsedContents, key) ?? []) as string[];
+        const existingField = deepGet(parsedContents, key);
+        if (!existingField || !Array.isArray(existingField)) {
+          failures.push(`"${key}" is expected to be an array`);
+          continue;
+        }
+
+        const arrayContents: unknown[] = existingField;
         for (const value of values) {
-          if (arrayContents.includes(value as string)) {
+          const existingMatch = arrayContents.find((item) => isDeepStrictEqual(value, item));
+          if (existingMatch) {
             failures.push(`"${key}" contains unexpected value "${value as string}"`);
           }
         }

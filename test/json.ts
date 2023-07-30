@@ -78,7 +78,7 @@ void t.test("can modify json", async (t) => {
   t.same(actualFoo, {
     name: "my-package",
     foo: "baz",
-    notanarray: "test",
+    notanarray: [],
     nothinghere: [],
     dupes: ["bacon"],
     bloop: ["one", "two"],
