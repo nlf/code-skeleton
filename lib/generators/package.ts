@@ -77,9 +77,14 @@ export class PackageGenerator extends Generator {
       updateRequest.license = options.license;
     }
 
+    let dependenciesModified = false;
     for (const _field of objectProperties) {
       const field = _field as keyof MutationObjects;
       if (options[field]) {
+        if (dependencyProperties.includes(_field)) {
+          dependenciesModified = true;
+        }
+
         const value = {
           ...pkg.content[field],
           ...options[field],
@@ -92,6 +97,7 @@ export class PackageGenerator extends Generator {
     }
 
     if (options.peerDependenciesMeta) {
+      dependenciesModified = true;
       const peerMeta = {
         ...pkg.content.peerDependenciesMeta,
         ...options.peerDependenciesMeta,
@@ -103,6 +109,7 @@ export class PackageGenerator extends Generator {
     }
 
     if (options.bundledDependencies) {
+      dependenciesModified = true;
       const {
         append = [],
         remove = [],
@@ -139,16 +146,19 @@ export class PackageGenerator extends Generator {
         const toRemove: string[] = options.removeDependencies;
         for (const name of toRemove) {
           if (name in value) {
+            dependenciesModified = true;
             // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
             delete value[name];
           }
 
           if (name in peerMeta) {
+            dependenciesModified = true;
             // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
             delete peerMeta[name];
           }
 
           if (bundledDependencies.includes(name)) {
+            dependenciesModified = true;
             bundledDependencies.splice(bundledDependencies.indexOf(name), 1);
           }
         }
@@ -183,6 +193,9 @@ export class PackageGenerator extends Generator {
 
     try {
       await pkg.save();
+      if (dependenciesModified) {
+        return this.pass("one or more changes were made to your project's dependencies, make sure to run `npm install`");
+      }
       return this.pass();
     } catch (err) /* istanbul ignore next */ {
       // coverage disabled due to complexity in testing

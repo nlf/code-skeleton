@@ -7,6 +7,7 @@ ansiColors.enabled = typeof colorSupported === "boolean"
   ? colorSupported
   : colorSupported.hasBasic;
 
+import { PackageGenerator } from "./generators/package";
 import type { SkeletonResults } from "./generators/abstract";
 import type { Config } from "./config";
 
@@ -60,7 +61,14 @@ export async function applySkeleton (config: Config) {
       }
       fileEnd();
     } else {
-      log(`${targetPath}: ${ansiColors.green("OK")}`, config);
+      const fileEnd = logGroup(`${targetPath}: ${ansiColors.green("OK")}`, config);
+      if (generator instanceof PackageGenerator) {
+        // coverage disabled, messages field is optional
+        for (const message of result[targetPath].messages ?? /* istanbul ignore next */ []) {
+          log(message, config);
+        }
+      }
+      fileEnd();
     }
   }
   applyEnd();

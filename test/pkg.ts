@@ -87,6 +87,9 @@ void t.test("can add fields to package.json", async (t) => {
   t.hasStrict(applyResult, {
     "package.json": {
       result: "pass",
+      messages: [
+        "one or more changes were made to your project's dependencies, make sure to run `npm install`",
+      ],
     },
   });
 
@@ -195,6 +198,9 @@ void t.test("can remove dependencies", async (t) => {
   t.hasStrict(applyResult, {
     "package.json": {
       result: "pass",
+      messages: [
+        "one or more changes were made to your project's dependencies, make sure to run `npm install`",
+      ],
     },
   });
 
@@ -254,6 +260,9 @@ void t.test("deps that are not a subset of the requested range are invalid", asy
   t.hasStrict(applyResult, {
     "package.json": {
       result: "pass",
+      messages: [
+        "one or more changes were made to your project's dependencies, make sure to run `npm install`",
+      ],
     },
   });
 
@@ -506,6 +515,9 @@ void t.test("removeDependencies prunes peerDependenciesMeta and bundledDependenc
   t.hasStrict(applyResult, {
     "package.json": {
       result: "pass",
+      messages: [
+        "one or more changes were made to your project's dependencies, make sure to run `npm install`",
+      ],
     },
   });
 
