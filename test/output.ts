@@ -78,13 +78,13 @@ void t.test("can log", async (t) => {
 
   t.hasStrict(messages, [
     "verifying skeleton \"irrelevant\"",
-    "foo.json: FAILED",
+    "bar.json FAILED",
+    "file missing",
+    "baz.json OK",
+    "beep.txt FAILED",
+    "file missing",
+    "foo.json FAILED",
     "\"foo\" missing",
-    "bar.json: FAILED",
-    "file missing",
-    "baz.json: OK",
-    "beep.txt: FAILED",
-    "file missing",
   ]);
 
   // to make the apply fail we make a directory in place of beep.txt
