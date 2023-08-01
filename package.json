@@ -28,7 +28,7 @@
   "author": "Nathan LaFreniere <nlf@nlf.sh>",
   "license": "ISC",
   "devDependencies": {
-    "@code4rena/skeleton": "1.0.1",
+    "@code4rena/skeleton": "1.0.3",
     "@tsconfig/node18": "^2.0.1",
     "@types/color-support": "^1.1.1",
     "@types/node": "^18.16.16",
