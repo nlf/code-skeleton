@@ -49,11 +49,15 @@ export async function applySkeleton (config: Config) {
     exitCode: 0,
   } as SkeletonResults;
 
+  const desiredLength = Math.max(...Object.keys(config.skeleton).map((key) => key.length)) + 1;
+  const sortedKeys = Object.keys(config.skeleton).sort((a, b) => a.localeCompare(b, "en"));
   const applyEnd = logGroup(`applying skeleton "${config.module}"`, config);
-  for (const [targetPath, generator] of Object.entries(config.skeleton)) {
+  for (const targetPath of sortedKeys) {
+    const generator = config.skeleton[targetPath];
+    const padding = " ".repeat(desiredLength - targetPath.length);
     result[targetPath] = await generator.apply(join(config.path, targetPath), config);
     if (result[targetPath].result !== "pass") {
-      const fileEnd = logGroup(`${targetPath}: ${ansiColors.red("FAILED")}`, config);
+      const fileEnd = logGroup(`${targetPath}${padding}${ansiColors.red("FAILED")}`, config);
       result.exitCode = 1;
       // coverage disabled, messages field is optional
       for (const message of result[targetPath].messages ?? /* istanbul ignore next */ []) {
@@ -61,7 +65,7 @@ export async function applySkeleton (config: Config) {
       }
       fileEnd();
     } else {
-      const fileEnd = logGroup(`${targetPath}: ${ansiColors.green("OK")}`, config);
+      const fileEnd = logGroup(`${targetPath}${padding}${ansiColors.green("OK")}`, config);
       if (generator instanceof PackageGenerator) {
         // coverage disabled, messages field is optional
         for (const message of result[targetPath].messages ?? /* istanbul ignore next */ []) {
@@ -81,11 +85,15 @@ export async function verifySkeleton (config: Config) {
     exitCode: 0,
   } as SkeletonResults;
 
+  const desiredLength = Math.max(...Object.keys(config.skeleton).map((key) => key.length)) + 1;
+  const sortedKeys = Object.keys(config.skeleton).sort((a, b) => a.localeCompare(b, "en"));
   const verifyEnd = logGroup(`verifying skeleton "${config.module}"`, config);
-  for (const [targetPath, generator] of Object.entries(config.skeleton)) {
+  for (const targetPath of sortedKeys) {
+    const generator = config.skeleton[targetPath];
+    const padding = " ".repeat(desiredLength - targetPath.length);
     result[targetPath] = await generator.verify(join(config.path, targetPath), config);
     if (result[targetPath].result !== "pass") {
-      const fileEnd = logGroup(`${targetPath}: ${ansiColors.red("FAILED")}`, config);
+      const fileEnd = logGroup(`${targetPath}${padding}${ansiColors.red("FAILED")}`, config);
       result.exitCode = 1;
       // coverage disabled, messages field is optional
       for (const message of result[targetPath].messages ?? /* istanbul ignore next */ []) {
@@ -93,7 +101,7 @@ export async function verifySkeleton (config: Config) {
       }
       fileEnd();
     } else {
-      log(`${targetPath}: ${ansiColors.green("OK")}`, config);
+      log(`${targetPath}${padding}${ansiColors.green("OK")}`, config);
     }
   }
   verifyEnd();
