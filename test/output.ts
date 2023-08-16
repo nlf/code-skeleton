@@ -54,25 +54,30 @@ void t.test("can log", async (t) => {
 
   const verifyResult = await verifySkeleton(config);
   t.hasStrict(verifyResult, {
-    "foo.json": {
-      result: "fail",
-      messages: [
-        "\"foo\" missing",
-      ],
-    },
-    "bar.json": { result: "fail",
-      messages: [
-        "file missing",
-      ],
-    },
-    "baz.json": {
-      result: "pass",
-    },
-    "beep.txt": {
-      result: "fail",
-      messages: [
-        "file missing",
-      ],
+    exitCode: 1,
+    reports: {
+      "foo.json": {
+        result: "fail",
+        problems: [{
+          field: "foo",
+          expected: "bar",
+        }],
+      },
+      "bar.json": {
+        result: "fail",
+        problems: [{
+          message: "file missing",
+        }],
+      },
+      "baz.json": {
+        result: "pass",
+      },
+      "beep.txt": {
+        result: "fail",
+        problems: [{
+          message: "file missing",
+        }],
+      },
     },
   });
 
@@ -84,30 +89,43 @@ void t.test("can log", async (t) => {
     "beep.txt FAILED",
     "file missing",
     "foo.json FAILED",
-    "\"foo\" missing",
+    "field \"foo\" expected value \"bar\" to be present",
   ]);
+  messages.length = 0;
 
   // to make the apply fail we make a directory in place of beep.txt
   await mkdir(join(root, "beep.txt"));
 
   const applyResult = await applySkeleton(config);
   t.hasStrict(applyResult, {
-    "foo.json": {
-      result: "pass",
-    },
-    "bar.json": {
-      result: "pass",
-    },
-    "baz.json": {
-      result: "pass",
-    },
-    "beep.txt": {
-      result: "fail",
-      messages: [
-        "EISDIR",
-      ],
+    exitCode: 1,
+    reports: {
+      "foo.json": {
+        result: "pass",
+      },
+      "bar.json": {
+        result: "pass",
+      },
+      "baz.json": {
+        result: "pass",
+      },
+      "beep.txt": {
+        result: "fail",
+        problems: [{
+          code: "EISDIR",
+        }],
+      },
     },
   });
+
+  t.hasStrict(messages, [
+    "applying skeleton \"irrelevant\"",
+    "bar.json OK",
+    "baz.json OK",
+    "beep.txt FAILED",
+    `[EISDIR]: EISDIR: illegal operation on a directory, open '${join(root, "beep.txt")}'`,
+    "foo.json OK",
+  ]);
 });
 
 void t.test("can silence logs", async (t) => {
@@ -135,11 +153,14 @@ void t.test("can silence logs", async (t) => {
 
   const verifyResult = await verifySkeleton(config);
   t.hasStrict(verifyResult, {
-    "foo.json": {
-      result: "fail",
-      messages: [
-        "file missing",
-      ],
+    exitCode: 1,
+    reports: {
+      "foo.json": {
+        result: "fail",
+        problems: [{
+          message: "file missing",
+        }],
+      },
     },
   });
 
@@ -147,8 +168,11 @@ void t.test("can silence logs", async (t) => {
 
   const applyResult = await applySkeleton(config);
   t.hasStrict(applyResult, {
-    "foo.json": {
-      result: "pass",
+    exitCode: 0,
+    reports: {
+      "foo.json": {
+        result: "pass",
+      },
     },
   });
 

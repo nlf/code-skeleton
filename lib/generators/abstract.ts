@@ -1,43 +1,104 @@
-import type { Config } from "../config";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { dirname } from "node:path";
 
-export interface GeneratorOptions {
-  sourcePath?: string;
+import { GeneratorProblem, type GeneratorProblemSpec } from "./problem";
+import { type GeneratorReport, GeneratorReportResult } from "./report";
+
+export interface GenerateInput {
+  path: string;
 }
 
-export interface GeneratorResults {
-  result: "pass" | "fail";
-  messages?: string[];
+export interface ValidateInput {
+  path: string;
+  found: string;
 }
 
-interface BaseResults {
-  exitCode: number;
-}
-export type SkeletonResults = BaseResults & Record<string, GeneratorResults>;
+export abstract class Generator<TOptions = unknown> {
+  options: TOptions;
+  #report: GeneratorReport = {
+    result: GeneratorReportResult.Fail,
+    problems: [],
+    messages: [],
+  };
 
-export abstract class Generator {
-  options: GeneratorOptions;
-
-  errors: string[] = [];
-
-  constructor (options: GeneratorOptions) {
+  constructor (options: TOptions) {
     this.options = options;
   }
 
-  pass (...messages: string[]): GeneratorResults {
-    return {
-      result: "pass",
-      messages,
-    };
+  note (message: string): void {
+    this.#report.messages.push(message);
   }
 
-  fail (...messages: string[]): GeneratorResults {
-    return {
-      result: "fail",
-      messages,
-    };
+  report (problem: GeneratorProblemSpec): void {
+    this.#report.problems.push(new GeneratorProblem(problem));
   }
 
-  abstract apply (targetPath: string, config: Config): Promise<GeneratorResults>;
-  abstract verify (targetPath: string, config: Config): Promise<GeneratorResults>;
+  async apply (targetPath: string): Promise<GeneratorReport> {
+    const result = await this.generate({
+      path: targetPath,
+    });
+    await mkdir(dirname(targetPath), { recursive: true });
+    await writeFile(targetPath, result);
+    this.#report.result = GeneratorReportResult.Pass;
+    return this.#report;
+  }
+
+  async verify (targetPath: string): Promise<GeneratorReport> {
+    this.#report.problems.length = 0;
+    let found: string;
+
+    try {
+      found = await readFile(targetPath, {
+        encoding: "utf8",
+      });
+    } catch (_err) {
+      const err = _err as Error & { code?: string };
+      if (err.code === "ENOENT") {
+        this.report({
+          message: "file missing",
+        });
+        this.#report.result = GeneratorReportResult.Fail;
+        return this.#report;
+      } else {
+        this.report({
+          code: err.code,
+          message: err.message,
+        });
+        this.#report.result = GeneratorReportResult.Fail;
+        return this.#report;
+      }
+    }
+
+    try {
+      this.#report.result = await this.validate({
+        path: targetPath,
+        found,
+      });
+    } catch (_err) {
+      const err = _err as Error;
+      this.report({ message: err.message });
+      this.#report.result = GeneratorReportResult.Fail;
+    }
+
+    return this.#report;
+  }
+
+  async validate (options: ValidateInput): Promise<GeneratorReportResult> {
+    const expected = await this.generate({
+      path: options.path,
+    });
+
+    if (expected !== options.found) {
+      this.report({
+        expected,
+        found: options.found,
+      });
+
+      return GeneratorReportResult.Fail;
+    }
+
+    return GeneratorReportResult.Pass;
+  }
+
+  abstract generate (options: GenerateInput): Promise<string>;
 }
-

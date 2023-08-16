@@ -1,9 +1,21 @@
 import { join } from "node:path";
 import { readFile } from "node:fs/promises";
+import { isDeepStrictEqual } from "node:util";
 import t from "tap";
 
-import { pkg, applySkeleton, verifySkeleton } from "../lib";
-import type { Config } from "../lib/config";
+import { type Config, pkg, applySkeleton, verifySkeleton, type GeneratorProblemSpec, GeneratorProblem } from "../lib";
+
+const has = (problems: GeneratorProblem[], input: GeneratorProblemSpec): boolean => {
+  return problems.some((item) => {
+    for (const [key, value] of Object.entries(input)) {
+      if (!(key in item) || !isDeepStrictEqual(item[key as keyof GeneratorProblemSpec], value)) {
+        return false;
+      }
+    }
+
+    return true;
+  });
+};
 
 void t.test("can add fields to package.json", async (t) => {
   const root = t.testdir({
@@ -30,6 +42,9 @@ void t.test("can add fields to package.json", async (t) => {
         main: "lib/index.js",
         scripts: {
           test: "tap",
+        },
+        tap: {
+          coverage: true,
         },
         bundledDependencies: {
           append: ["foo"],
@@ -62,34 +77,45 @@ void t.test("can add fields to package.json", async (t) => {
 
   const initialVerifyResult = await verifySkeleton(config);
   t.hasStrict(initialVerifyResult, {
-    "package.json": {
-      result: "fail",
-      messages: [
-        '"main" expected to be "lib/index.js" but found "undefined"',
-        '"license" expected to be "MIT" but found "undefined"',
-        `"engines.node" expected to be "${process.version}" but found "undefined"`,
-        '"files" is missing expected entry "/lib"',
-        '"files" is missing expected entry "/bin"',
-        '"files" found unexpected entry "/foo"',
-        '"scripts.test" expected to be "tap" but found "undefined"',
-        '"dependencies" is missing expected entry "foo"',
-        '"devDependencies" is missing expected entry "tap"',
-        '"optionalDependencies" is missing expected entry "debug"',
-        '"peerDependencies" is missing expected entry "once"',
-        '"bundledDependencies" is missing expected entry "foo"',
-        '"files" found unexpected entry "bar"',
-        '"peerDependenciesMeta" is missing expected entry "once"',
-      ],
+    exitCode: 1,
+    reports: {
+      "package.json": {
+        result: "fail",
+        problems: [],
+        // problems are asserted individually so that order doesn't matter
+      },
     },
   });
 
+  const problems = initialVerifyResult.reports["package.json"].problems;
+
+  t.ok(has(problems, { field: "main", expected: "lib/index.js" }));
+  t.ok(has(problems, { field: "license", expected: "MIT" }));
+  t.ok(has(problems, { field: "engines.node", expected: process.version }));
+  t.ok(has(problems, { field: "files", expected: "/lib" }));
+  t.ok(has(problems, { field: "files", expected: "/bin" }));
+  t.ok(has(problems, { field: "files", found: "/foo" }));
+  t.ok(has(problems, { field: "scripts.test", expected: "tap" }));
+  t.ok(has(problems, { field: "dependencies.foo", expected: "^1.0.0" }));
+  t.ok(has(problems, { field: "devDependencies.tap", expected: "^16.0.0" }));
+  t.ok(has(problems, { field: "optionalDependencies.debug", expected: "^4.3.4" }));
+  t.ok(has(problems, { field: "peerDependencies.once", expected: "^1.4.0" }));
+  t.ok(has(problems, { field: "peerDependenciesMeta.once", expected: { optional: true } }));
+  t.ok(has(problems, { field: "bundledDependencies", expected: "foo" }));
+  t.ok(has(problems, { field: "bundledDependencies", found: "bar" }));
+  t.ok(has(problems, { field: "tap.coverage", expected: true }));
+  t.equal(problems.length, 15);
+
   const applyResult = await applySkeleton(config);
   t.hasStrict(applyResult, {
-    "package.json": {
-      result: "pass",
-      messages: [
-        "one or more changes were made to your project's dependencies, make sure to run `npm install`",
-      ],
+    exitCode: 0,
+    reports: {
+      "package.json": {
+        result: "pass",
+        messages: [
+          "one or more changes were made to your project's dependencies, make sure to run `npm install`",
+        ],
+      },
     },
   });
 
@@ -124,12 +150,18 @@ void t.test("can add fields to package.json", async (t) => {
         optional: true,
       },
     },
+    tap: {
+      coverage: true,
+    },
   });
 
   const secondVerifyResult = await verifySkeleton(config);
   t.hasStrict(secondVerifyResult, {
-    "package.json": {
-      result: "pass",
+    exitCode: 0,
+    reports: {
+      "package.json": {
+        result: "pass",
+      },
     },
   });
 });
@@ -151,6 +183,7 @@ void t.test("can remove dependencies", async (t) => {
       },
       peerDependencies: {
         peer: "^1.0.0",
+        peerB: "^1.0.0",
       },
       peerDependenciesMeta: {
         peer: {
@@ -170,6 +203,7 @@ void t.test("can remove dependencies", async (t) => {
           "dev",
           "opt",
           "peer",
+          "peerB",
         ],
       }),
     },
@@ -181,26 +215,34 @@ void t.test("can remove dependencies", async (t) => {
 
   const initialVerifyResult = await verifySkeleton(config);
   t.hasStrict(initialVerifyResult, {
-    "package.json": {
-      result: "fail",
-      messages: [
-        '"bundledDependencies" includes unwanted entry "dep"',
-        '"dependencies" includes unwanted entry "dep"',
-        '"devDependencies" includes unwanted entry "dev"',
-        '"optionalDependencies" includes unwanted entry "opt"',
-        '"peerDependencies" includes unwanted entry "peer"',
-        '"peerDependenciesMeta" includes unwanted entry "peer"',
-      ],
+    exitCode: 1,
+    reports: {
+      "package.json": {
+        result: "fail",
+        problems: [],
+        // the problems are asserted separately
+      },
     },
   });
 
+  const problems = initialVerifyResult.reports["package.json"].problems;
+  t.ok(has(problems, { field: "bundledDependencies", found: "dep" }));
+  t.ok(has(problems, { field: "dependencies", found: "dep" }));
+  t.ok(has(problems, { field: "devDependencies", found: "dev" }));
+  t.ok(has(problems, { field: "optionalDependencies", found: "opt" }));
+  t.ok(has(problems, { field: "peerDependencies", found: "peer" }));
+  t.ok(has(problems, { field: "peerDependenciesMeta", found: "peer" }));
+
   const applyResult = await applySkeleton(config);
   t.hasStrict(applyResult, {
-    "package.json": {
-      result: "pass",
-      messages: [
-        "one or more changes were made to your project's dependencies, make sure to run `npm install`",
-      ],
+    exitCode: 0,
+    reports: {
+      "package.json": {
+        result: "pass",
+        messages: [
+          "one or more changes were made to your project's dependencies, make sure to run `npm install`",
+        ],
+      },
     },
   });
 
@@ -215,8 +257,11 @@ void t.test("can remove dependencies", async (t) => {
 
   const secondVerifyResult = await verifySkeleton(config);
   t.hasStrict(secondVerifyResult, {
-    "package.json": {
-      result: "pass",
+    exitCode: 0,
+    reports: {
+      "package.json": {
+        result: "pass",
+      },
     },
   });
 });
@@ -248,21 +293,28 @@ void t.test("deps that are not a subset of the requested range are invalid", asy
 
   const initialVerifyResult = await verifySkeleton(config);
   t.hasStrict(initialVerifyResult, {
-    "package.json": {
-      result: "fail",
-      messages: [
-        '"dependencies.debug" expected to be a subset of "^2.0.0" but found "^1.0.0"',
-      ],
+    exitCode: 1,
+    reports: {
+      "package.json": {
+        result: "fail",
+        problems: [{
+          field: "dependencies.debug",
+          message: "expected to be a subset of \"^2.0.0\" but found \"^1.0.0\"",
+        }],
+      },
     },
   });
 
   const applyResult = await applySkeleton(config);
   t.hasStrict(applyResult, {
-    "package.json": {
-      result: "pass",
-      messages: [
-        "one or more changes were made to your project's dependencies, make sure to run `npm install`",
-      ],
+    exitCode: 0,
+    reports: {
+      "package.json": {
+        result: "pass",
+        messages: [
+          "one or more changes were made to your project's dependencies, make sure to run `npm install`",
+        ],
+      },
     },
   });
 
@@ -276,8 +328,11 @@ void t.test("deps that are not a subset of the requested range are invalid", asy
 
   const secondVerifyResult = await verifySkeleton(config);
   t.hasStrict(secondVerifyResult, {
-    "package.json": {
-      result: "pass",
+    exitCode: 0,
+    reports: {
+      "package.json": {
+        result: "pass",
+      },
     },
   });
 });
@@ -319,14 +374,18 @@ void t.test("can set peerDependenciesMeta to optional", async (t) => {
 
   const initialVerifyResult = await verifySkeleton(config);
   t.hasStrict(initialVerifyResult, {
-    "package.json": {
-      result: "fail",
-      messages: [
-        '"peerDependenciesMeta" is missing expected entry "foo"',
-        '"peerDependenciesMeta.bar.optional" expected to be "true" but found "false"',
-      ],
+    exitCode: 1,
+    reports: {
+      "package.json": {
+        result: "fail",
+        problems: [],
+      },
     },
   });
+
+  const problems = initialVerifyResult.reports["package.json"].problems;
+  t.ok(has(problems, { field: "peerDependenciesMeta.foo", expected: { optional: true } }));
+  t.ok(has(problems, { field: "peerDependenciesMeta.bar", expected: { optional: true } }));
 });
 
 void t.test("empty object properties are removed", async (t) => {
@@ -353,16 +412,22 @@ void t.test("empty object properties are removed", async (t) => {
 
   const verifyResult = await verifySkeleton(config);
   t.hasStrict(verifyResult, {
-    "package.json": {
-      // verify passes because the object is empty and should be
-      result: "pass",
+    exitCode: 0,
+    reports: {
+      "package.json": {
+        // verify passes because the object is empty and should be
+        result: "pass",
+      },
     },
   });
 
   const applyResult = await applySkeleton(config);
   t.hasStrict(applyResult, {
-    "package.json": {
-      result: "pass",
+    exitCode: 0,
+    reports: {
+      "package.json": {
+        result: "pass",
+      },
     },
   });
 
@@ -370,6 +435,58 @@ void t.test("empty object properties are removed", async (t) => {
   const pkgJson: unknown = JSON.parse(rawPkg);
   t.same(pkgJson, {
     name: "foo",
+  });
+});
+
+void t.test("array mutations", async (t) => {
+  const root = t.testdir({
+    "package.json": JSON.stringify({
+      name: "foo",
+      arrayOne: ["bar"],
+      arrayTwo: ["bar"],
+    }),
+  });
+
+  const config: Config = {
+    path: root,
+    module: "irrelevant",
+    skeleton: {
+      "package.json": pkg({
+        arrayOne: {
+          append: ["foo"],
+        },
+        arrayTwo: {
+          remove: ["bar"],
+        },
+        arrayThree: {
+          append: ["baz"],
+        },
+      }),
+    },
+    variables: {},
+    flags: {
+      silent: true,
+    },
+  };
+
+  const verifyResult = await verifySkeleton(config);
+  t.hasStrict(verifyResult, {
+    exitCode: 1,
+    reports: {
+      "package.json": {
+        result: "fail",
+      },
+    },
+  });
+
+  const applyResult = await applySkeleton(config);
+  t.hasStrict(applyResult, {
+    exitCode: 0,
+    reports: {
+      "package.json": {
+        result: "pass",
+      },
+    },
   });
 });
 
@@ -397,16 +514,22 @@ void t.test("empty array properties get removed", async (t) => {
 
   const verifyResult = await verifySkeleton(config);
   t.hasStrict(verifyResult, {
-    "package.json": {
-      // verify passes because the object is empty and should be
-      result: "pass",
+    exitCode: 0,
+    reports: {
+      "package.json": {
+        // verify passes because the object is empty and should be
+        result: "pass",
+      },
     },
   });
 
   const applyResult = await applySkeleton(config);
   t.hasStrict(applyResult, {
-    "package.json": {
-      result: "pass",
+    exitCode: 0,
+    reports: {
+      "package.json": {
+        result: "pass",
+      },
     },
   });
 
@@ -440,16 +563,22 @@ void t.test("removeDependencies works when no bundledDeps are present", async (t
 
   const verifyResult = await verifySkeleton(config);
   t.hasStrict(verifyResult, {
-    "package.json": {
-      // verify passes because the object is empty and should be
-      result: "pass",
+    exitCode: 0,
+    reports: {
+      "package.json": {
+        // verify passes because the object is empty and should be
+        result: "pass",
+      },
     },
   });
 
   const applyResult = await applySkeleton(config);
   t.hasStrict(applyResult, {
-    "package.json": {
-      result: "pass",
+    exitCode: 0,
+    reports: {
+      "package.json": {
+        result: "pass",
+      },
     },
   });
 
@@ -500,24 +629,31 @@ void t.test("removeDependencies prunes peerDependenciesMeta and bundledDependenc
 
   const verifyResult = await verifySkeleton(config);
   t.hasStrict(verifyResult, {
-    "package.json": {
-      result: "fail",
-      messages: [
-        '"bundledDependencies" includes unwanted entry "bar"',
-        '"dependencies" includes unwanted entry "bar"',
-        '"peerDependencies" includes unwanted entry "baz"',
-        '"peerDependenciesMeta" includes unwanted entry "baz"',
-      ],
+    exitCode: 1,
+    reports: {
+      "package.json": {
+        result: "fail",
+        problems: [],
+      },
     },
   });
 
+  const problems = verifyResult.reports["package.json"].problems;
+  t.ok(has(problems, { field: "bundledDependencies", found: "bar" }));
+  t.ok(has(problems, { field: "dependencies", found: "bar" }));
+  t.ok(has(problems, { field: "peerDependencies", found: "baz" }));
+  t.ok(has(problems, { field: "peerDependenciesMeta", found: "baz" }));
+
   const applyResult = await applySkeleton(config);
   t.hasStrict(applyResult, {
-    "package.json": {
-      result: "pass",
-      messages: [
-        "one or more changes were made to your project's dependencies, make sure to run `npm install`",
-      ],
+    exitCode: 0,
+    reports: {
+      "package.json": {
+        result: "pass",
+        messages: [
+          "one or more changes were made to your project's dependencies, make sure to run `npm install`",
+        ],
+      },
     },
   });
 
@@ -544,6 +680,7 @@ void t.test("correctly identifies missing files property", async (t) => {
   const root = t.testdir({
     "package.json": JSON.stringify({
       name: "foo",
+      keywords: ["test", "foo"],
     }),
   });
 
@@ -555,6 +692,9 @@ void t.test("correctly identifies missing files property", async (t) => {
         files: {
           append: ["foo"],
         },
+        keywords: {
+          remove: ["test"],
+        },
       }),
     },
     variables: {},
@@ -565,13 +705,17 @@ void t.test("correctly identifies missing files property", async (t) => {
 
   const verifyResult = await verifySkeleton(config);
   t.hasStrict(verifyResult, {
-    "package.json": {
-      result: "fail",
-      messages: [
-        '"files" is missing expected entry "foo"',
-      ],
+    exitCode: 1,
+    reports: {
+      "package.json": {
+        result: "fail",
+        problems: [],
+      },
     },
   });
+
+  const problems = verifyResult.reports["package.json"].problems;
+  t.ok(has(problems, { field: "files", expected: "foo" }));
 });
 
 void t.test("leaves dependencies that are already a subset of the request alone", async (t) => {
@@ -605,22 +749,29 @@ void t.test("leaves dependencies that are already a subset of the request alone"
 
   const initialVerifyResult = await verifySkeleton(config);
   t.hasStrict(initialVerifyResult, {
-    "package.json": {
-      result: "fail",
-      messages: [
-        "\"dependencies.hereandinvalid\" expected to be a subset of \"^2.0.0\" but found \"^1.0.0\"",
-        "\"dependencies\" is missing expected entry \"missing\"",
-      ],
+    exitCode: 1,
+    reports: {
+      "package.json": {
+        result: "fail",
+        problems: [],
+      },
     },
   });
 
+  const problems = initialVerifyResult.reports["package.json"].problems;
+  t.ok(has(problems, { field: "dependencies.hereandinvalid", message: "expected to be a subset of \"^2.0.0\" but found \"^1.0.0\"" }));
+  t.ok(has(problems, { field: "dependencies.missing", expected: "^1.0.0" }));
+
   const applyResult = await applySkeleton(config);
   t.hasStrict(applyResult, {
-    "package.json": {
-      result: "pass",
-      messages: [
-        "one or more changes were made to your project's dependencies, make sure to run `npm install`",
-      ],
+    exitCode: 0,
+    reports: {
+      "package.json": {
+        result: "pass",
+        messages: [
+          "one or more changes were made to your project's dependencies, make sure to run `npm install`",
+        ],
+      },
     },
   });
 
@@ -664,16 +815,21 @@ void t.test("does not tell user to run npm install if no deps change", async (t)
 
   const verifyResult = await verifySkeleton(config);
   t.hasStrict(verifyResult, {
-    "package.json": {
-      result: "pass",
+    exitCode: 0,
+    reports: {
+      "package.json": {
+        result: "pass",
+      },
     },
   });
 
   const applyResult = await applySkeleton(config);
   t.hasStrict(applyResult, {
-    "package.json": {
-      result: "pass",
+    exitCode: 0,
+    reports: {
+      "package.json": {
+        result: "pass",
+      },
     },
   });
-  t.equal(applyResult["package.json"].messages?.length, 0);
 });

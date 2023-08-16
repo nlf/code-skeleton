@@ -7,19 +7,16 @@ ansiColors.enabled = typeof colorSupported === "boolean"
   ? colorSupported
   : colorSupported.hasBasic;
 
-import { PackageGenerator } from "./generators/package";
-import type { SkeletonResults } from "./generators/abstract";
+import { GeneratorProblem, type GeneratorReport, GeneratorReportResult } from "./generators";
 import type { Config } from "./config";
 
-export {
-  copy,
-  json,
-  pkg,
-} from "./generators";
+export interface SkeletonResults {
+  exitCode: number;
+  reports: Record<string, GeneratorReport>;
+}
 
-export {
-  Skeleton,
-} from "./config";
+export * from "./generators";
+export * from "./config";
 
 function log (message: string, config: Config) {
   if (config.flags.silent !== true) {
@@ -45,9 +42,10 @@ function logGroup (message: string, config: Config) {
 }
 
 export async function applySkeleton (config: Config) {
-  const result = {
+  const result: SkeletonResults = {
     exitCode: 0,
-  } as SkeletonResults;
+    reports: {},
+  };
 
   const desiredLength = Math.max(...Object.keys(config.skeleton).map((key) => key.length)) + 1;
   const sortedKeys = Object.keys(config.skeleton).sort((a, b) => a.localeCompare(b, "en"));
@@ -55,25 +53,35 @@ export async function applySkeleton (config: Config) {
   for (const targetPath of sortedKeys) {
     const generator = config.skeleton[targetPath];
     const padding = " ".repeat(desiredLength - targetPath.length);
-    result[targetPath] = await generator.apply(join(config.path, targetPath), config);
-    if (result[targetPath].result !== "pass") {
-      const fileEnd = logGroup(`${targetPath}${padding}${ansiColors.red("FAILED")}`, config);
+    let fileEnd;
+
+    try {
+      const report = await generator.apply(join(config.path, targetPath));
+      fileEnd = logGroup(`${targetPath}${padding}${ansiColors.green("OK")}`, config);
+      for (const message of report.messages) {
+        log(message, config);
+      }
+      result.reports[targetPath] = report;
+    } catch (_err) {
+      const err = _err as Error & { code?: string };
       result.exitCode = 1;
-      // coverage disabled, messages field is optional
-      for (const message of result[targetPath].messages ?? /* istanbul ignore next */ []) {
-        logVerbose(message, config);
+      result.reports[targetPath] = {
+        result: GeneratorReportResult.Fail,
+        problems: [
+          new GeneratorProblem({
+            code: err.code,
+            message: err.message,
+          }),
+        ],
+        messages: [],
+      };
+      fileEnd = logGroup(`${targetPath}${padding}${ansiColors.red("FAILED")}`, config);
+      for (const problem of result.reports[targetPath].problems) {
+        logVerbose(problem.toString(), config);
       }
-      fileEnd();
-    } else {
-      const fileEnd = logGroup(`${targetPath}${padding}${ansiColors.green("OK")}`, config);
-      if (generator instanceof PackageGenerator) {
-        // coverage disabled, messages field is optional
-        for (const message of result[targetPath].messages ?? /* istanbul ignore next */ []) {
-          log(message, config);
-        }
-      }
-      fileEnd();
     }
+
+    fileEnd();
   }
   applyEnd();
 
@@ -81,9 +89,10 @@ export async function applySkeleton (config: Config) {
 }
 
 export async function verifySkeleton (config: Config) {
-  const result = {
+  const result: SkeletonResults = {
     exitCode: 0,
-  } as SkeletonResults;
+    reports: {},
+  };
 
   const desiredLength = Math.max(...Object.keys(config.skeleton).map((key) => key.length)) + 1;
   const sortedKeys = Object.keys(config.skeleton).sort((a, b) => a.localeCompare(b, "en"));
@@ -91,13 +100,13 @@ export async function verifySkeleton (config: Config) {
   for (const targetPath of sortedKeys) {
     const generator = config.skeleton[targetPath];
     const padding = " ".repeat(desiredLength - targetPath.length);
-    result[targetPath] = await generator.verify(join(config.path, targetPath), config);
-    if (result[targetPath].result !== "pass") {
+    const report: GeneratorReport = await generator.verify(join(config.path, targetPath));
+    result.reports[targetPath] = report;
+    if (report.result !== GeneratorReportResult.Pass) {
       const fileEnd = logGroup(`${targetPath}${padding}${ansiColors.red("FAILED")}`, config);
       result.exitCode = 1;
-      // coverage disabled, messages field is optional
-      for (const message of result[targetPath].messages ?? /* istanbul ignore next */ []) {
-        logVerbose(message, config);
+      for (const problem of report.problems) {
+        logVerbose(problem.toString(), config);
       }
       fileEnd();
     } else {

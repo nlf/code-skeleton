@@ -2,8 +2,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import t from "tap";
 
-import { copy, applySkeleton, verifySkeleton } from "../lib";
-import type { Config } from "../lib/config";
+import { copy, applySkeleton, verifySkeleton, type Config } from "../lib";
 
 void t.test("can copy a file", async (t) => {
   const CONTENT_README = "this is a copied file";
@@ -35,19 +34,21 @@ void t.test("can copy a file", async (t) => {
   };
 
   const initialVerifyResult = await verifySkeleton(config);
-
   t.hasStrict(initialVerifyResult, {
-    "README.md": {
-      result: "fail",
-      messages: ["file missing"],
+    exitCode: 1,
+    reports: {
+      "README.md": {
+        result: "fail",
+        problems: [{
+          message: "file missing",
+        }],
+      },
     },
   });
 
   const applyResult = await applySkeleton(config);
   t.hasStrict(applyResult, {
-    "README.md": {
-      result: "pass",
-    },
+    exitCode: 0,
   });
 
   const actualContent = await readFile(readmePath, { encoding: "utf8" });
@@ -55,25 +56,34 @@ void t.test("can copy a file", async (t) => {
 
   const secondVerifyResult = await verifySkeleton(config);
   t.hasStrict(secondVerifyResult, {
-    "README.md": {
-      result: "pass",
+    exitCode: 0,
+    reports: {
+      "README.md": {
+        result: "pass",
+        problems: [],
+      },
     },
   });
 
   await writeFile(readmePath, "overwritten garbage content");
-
   const brokenVerifyResult = await verifySkeleton(config);
   t.hasStrict(brokenVerifyResult, {
-    "README.md": {
-      result: "fail",
-      messages: ["contents do not match"],
-    },
+    exitCode: 1,
+    reports: {
+      "README.md": {
+        result: "fail",
+        problems: [{
+          expected: CONTENT_README,
+          found: "overwritten garbage content",
+        }],
+      },
+    }
   });
 });
 
 void t.test("throws when no path is provided", (t) => {
   // @ts-expect-error - we are deliberately passing no input here to assert the failure
-  t.throws(() => copy(), { message: /Must specify a source path/ });
+  t.throws(() => copy(), { message: /Must specify a path/ });
   t.end();
 });
 
@@ -103,17 +113,29 @@ void t.test("surfaces errors", async (t) => {
 
   const verifyResult = await verifySkeleton(config);
   t.hasStrict(verifyResult, {
-    "README.txt": {
-      result: "fail",
-      messages: ["EISDIR"],
+    exitCode: 1,
+    reports: {
+      "README.txt": {
+        result: "fail",
+        problems: [{
+          code: "EISDIR",
+          message: "EISDIR: illegal operation on a directory, read",
+        }],
+      },
     },
   });
 
   const applyResult = await applySkeleton(config);
   t.hasStrict(applyResult, {
-    "README.txt": {
-      result: "fail",
-      messages: ["EISDIR"],
+    exitCode: 1,
+    reports: {
+      "README.txt": {
+        result: "fail",
+        problems: [{
+          code: "EISDIR",
+          message: "EISDIR: illegal operation on a directory, read",
+        }],
+      },
     },
   });
 });
