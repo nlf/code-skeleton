@@ -1,44 +1,21 @@
 import { dirname } from "node:path";
+import { isDeepStrictEqual } from "node:util";
 import packageJson from "@npmcli/package-json";
+import { Indent, Newline } from "json-parse-even-better-errors";
 import semver from "semver";
 
-import { Generator, type GeneratorOptions, type GeneratorResults } from "./abstract";
+import { Generator, type GenerateInput, type ValidateInput } from "./abstract";
+import { type GeneratorProblemSpec } from "./problem";
+import { GeneratorReportResult } from "./report";
 
-// user inputs
-export interface PackageOptions extends GeneratorOptions {
-  engines?: Record<string, string>;
-  files?: {
-    append?: string[];
-    remove?: string[];
-  };
-  license?: string;
-  main?: string;
-  scripts?: Record<string, string>;
+// eslint ignored here, this needs to be an interface to avoid self references
+// eslint-disable-next-line @typescript-eslint/consistent-indexed-object-style
+interface R<T> { [key: string]: T }
+type ArrayMutation = { append: unknown[]; remove?: unknown[] } | { append?: unknown[]; remove: unknown[] };
+type ValueMutation = string | string[] | number | boolean | null | ArrayMutation | R<ValueMutation>;
+export type PackageOptions = Record<string, ValueMutation>;
 
-  bundledDependencies?: {
-    append?: string[];
-    remove?: string[];
-  };
-  dependencies?: Record<string, string>;
-  devDependencies?: Record<string, string>;
-  optionalDependencies?: Record<string, string>;
-  peerDependencies?: Record<string, string>;
-  peerDependenciesMeta?: Record<string, { optional: true }>;
-  removeDependencies?: string[];
-
-  [key: string]: unknown;
-}
-
-// base of object passed to packageJson.update()
-// these fields are grouped so that we can loop over them more easily
-interface MutationObjects {
-  engines?: Record<string, string>;
-  dependencies?: Record<string, string>;
-  devDependencies?: Record<string, string>;
-  optionalDependencies?: Record<string, string>;
-  peerDependencies?: Record<string, string>;
-  scripts?: Record<string, string>;
-}
+type Content = Record<string, string | number | boolean | null | undefined | Content[] | R<Content>>;
 
 const dependencyProperties = [
   "dependencies",
@@ -47,319 +24,279 @@ const dependencyProperties = [
   "peerDependencies",
 ];
 
-const objectProperties = [
-  "engines",
-  "scripts",
-];
-
-// rest of the object passed to packageJson.update()
-interface MutationRequest extends MutationObjects {
-  files?: string[];
-  license?: string;
-  main?: string;
-  bundledDependencies?: string[];
-  peerDependenciesMeta?: Record<string, { optional: true }>;
-}
-
-export class PackageGenerator extends Generator {
-  async apply (targetPath: string): Promise<GeneratorResults> {
-    const options = this.options as PackageOptions;
-    const pkg = await packageJson.load(dirname(targetPath));
-
-    const updateRequest: MutationRequest = {};
-
-    if (options.main) {
-      updateRequest.main = options.main;
-    }
-
-    if (options.license) {
-      updateRequest.license = options.license;
-    }
-
+export class PackageGenerator extends Generator<PackageOptions> {
+  async generate (options: GenerateInput): Promise<string> {
+    const pkg = await packageJson.load(dirname(options.path), { create: true });
+    const content = pkg.content as Content;
     let dependenciesModified = false;
-    for (const _field of objectProperties) {
-      const field = _field as keyof MutationObjects;
-      if (options[field]) {
-        const value = {
-          ...pkg.content[field],
-          ...options[field],
-        };
 
-        if (Object.keys(value).length > 0) {
-          updateRequest[field] = value;
-        }
+    const updateRequest: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(this.options)) {
+      if (typeof value === "string" ||
+          typeof value === "number" ||
+          typeof value === "boolean" ||
+          value === null) {
+
+        updateRequest[key] = value;
+        continue;
       }
-    }
 
-    for (const _field of dependencyProperties) {
-      const field = _field as keyof MutationObjects;
-      if (options[field]) {
-        const deps: Record<string, string> = {
-          ...pkg.content[field],
+      const arrayMutation = value as ArrayMutation;
+      if (arrayMutation.append || arrayMutation.remove) {
+        const {
+          append = [],
+          remove = [],
+        } = arrayMutation;
+
+        const current = content[key] ?? [];
+        const replacement: unknown[] = [
+          ...current as unknown[],
+          ...append,
+        ].filter((item) => !remove.includes(item));
+
+        if (key === "bundledDependencies") {
+          dependenciesModified = true;
+        }
+
+        updateRequest[key] = replacement;
+        continue;
+      }
+
+      if (dependencyProperties.includes(key)) {
+        const current = content[key] ?? {};
+        const replacement = {
+          ...current as R<unknown>,
         };
 
-        for (const [name, range] of Object.entries(options[field] as object)) {
-          // if the dependency is already present in the package.json, and the
-          // semver range that is set is a subset of the one requested by the
-          // skeleton, then we leave it alone
-          if (name in deps && semver.subset(deps[name], range as string)) {
+        for (const [name, range] of Object.entries(value)) {
+          if (name in replacement && semver.subset(replacement[name] as string, range as string)) {
             continue;
           }
 
           dependenciesModified = true;
-          deps[name] = range as string;
+          replacement[name] = range;
         }
 
         if (dependenciesModified) {
-          updateRequest[field] = deps;
+          updateRequest[key] = replacement;
         }
+
+        continue;
       }
-    }
 
-    if (options.peerDependenciesMeta) {
-      dependenciesModified = true;
-      const peerMeta = {
-        ...pkg.content.peerDependenciesMeta,
-        ...options.peerDependenciesMeta,
-      };
-
-      if (Object.keys(peerMeta).length > 0) {
-        updateRequest.peerDependenciesMeta = peerMeta;
-      }
-    }
-
-    if (options.bundledDependencies) {
-      dependenciesModified = true;
-      const {
-        append = [],
-        remove = [],
-      } = options.bundledDependencies;
-
-      const bundledDeps = [
-        ...pkg.content.bundledDependencies ?? [],
-        ...append,
-      ].filter((bundle) => !remove.includes(bundle));
-      updateRequest.bundledDependencies = bundledDeps.length > 0
-        ? bundledDeps
-        : undefined;
-    }
-
-    if (options.removeDependencies) {
-      for (const _field of dependencyProperties) {
-        const field = _field as keyof MutationObjects;
-
-        const value = {
-          ...pkg.content[field],
-          ...options[field],
-        } as Record<string, string>;
-
-        const peerMeta = {
-          ...pkg.content.peerDependenciesMeta,
-          ...options.peerDependenciesMeta,
+      if (key !== "removeDependencies") {
+        const current = content[key] ?? {};
+        const replacement = {
+          ...current as Record<string, unknown>,
+          ...value,
         };
 
-        const bundledDependencies = Array.from(new Set([
-          ...pkg.content.bundledDependencies ?? [],
-          ...updateRequest.bundledDependencies ?? [],
-        ]));
-
-        const toRemove: string[] = options.removeDependencies;
-        for (const name of toRemove) {
-          if (name in value) {
-            dependenciesModified = true;
-            // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-            delete value[name];
-          }
-
-          if (name in peerMeta) {
-            dependenciesModified = true;
-            // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-            delete peerMeta[name];
-          }
-
-          if (bundledDependencies.includes(name)) {
-            dependenciesModified = true;
-            bundledDependencies.splice(bundledDependencies.indexOf(name), 1);
-          }
+        if (key === "peerDependenciesMeta") {
+          dependenciesModified = true;
         }
 
-        updateRequest[field] = value;
-        updateRequest.peerDependenciesMeta = Object.keys(peerMeta).length > 0
-          ? peerMeta
-          : undefined;
-
-        updateRequest.bundledDependencies = bundledDependencies.length > 0
-          ? bundledDependencies
-          : undefined;
+        updateRequest[key] = Object.keys(replacement).length > 0 ? replacement : undefined;
       }
     }
 
-    if (options.files) {
-      const {
-        append = [],
-        remove = [],
-      } = options.files;
+    if (Array.isArray(this.options.removeDependencies)) {
+      for (const name of this.options.removeDependencies) {
+        for (const key of dependencyProperties) {
+          // istanbul ignore next - defense in depth
+          const current = (key in updateRequest
+            ? (updateRequest[key] ?? {})
+            : (content[key] ?? {})
+          ) as Record<string, unknown>;
 
-      const files = Array.from(new Set([
-        ...pkg.content.files ?? [],
-        ...append,
-      ].filter((file) => !remove.includes(file))));
-      updateRequest.files = files.length > 0
-        ? files
-        : undefined;
+          if (name in current) {
+            dependenciesModified = true;
+          // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+            delete current[name];
+            updateRequest[key] = current;
+          }
+        }
+
+        const peerDependenciesMeta = ("peerDependenciesMeta" in updateRequest
+          ? (updateRequest.peerDependenciesMeta ?? {})
+          : (content.peerDependenciesMeta ?? {})
+        ) as Record<string, unknown>;
+
+        if (name in peerDependenciesMeta) {
+          dependenciesModified = true;
+          // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+          delete peerDependenciesMeta[name];
+          // XXX this is here because @npmcli/package-json doesn't remove this field when empty
+          updateRequest.peerDependenciesMeta = Object.keys(peerDependenciesMeta).length > 0
+            ? peerDependenciesMeta
+            : undefined;
+        }
+
+        const bundledDependencies = ("bundledDependencies" in updateRequest
+          ? updateRequest.bundledDependencies
+            ? updateRequest.bundledDependencies
+            : []
+          : content.bundledDependencies
+            ? content.bundledDependencies
+            : []) as unknown[];
+
+        if (bundledDependencies.includes(name)) {
+          dependenciesModified = true;
+          bundledDependencies.splice(bundledDependencies.indexOf(name), 1);
+          // XXX this is here because @npmcli/package-json doesn't remove this field when empty
+          updateRequest.bundledDependencies = bundledDependencies.length > 0
+            ? bundledDependencies
+            : undefined;
+        }
+      }
     }
 
     pkg.update(updateRequest);
 
-    try {
-      await pkg.save();
-      if (dependenciesModified) {
-        return this.pass("one or more changes were made to your project's dependencies, make sure to run `npm install`");
-      }
-      return this.pass();
-    } catch (err) /* istanbul ignore next */ {
-      // coverage disabled due to complexity in testing
-      const { code, message } = err as { code?: string; message: string };
-      return this.fail(code ?? message);
+    if (dependenciesModified) {
+      this.note("one or more changes were made to your project's dependencies, make sure to run `npm install`");
     }
+
+    // eslint disabled for these two lines because the types indicate the values are required,
+    // however in practice they do sometimes have a value of undefined
+    // @ts-expect-error the types of pkg.content are very wrong
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition,@typescript-eslint/no-unsafe-assignment
+    const indentString: string = pkg.content[Indent] ?? "  ";
+    // @ts-expect-error the types of pkg.content are very wrong
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition,@typescript-eslint/no-unsafe-assignment
+    const newlineString: string = pkg.content[Newline] ?? "\n";
+    const fileContent = `${JSON.stringify(pkg.content, null, indentString)}\n`.replace(/\n/g, newlineString);
+    return fileContent;
   }
 
-  async verify (targetPath: string): Promise<GeneratorResults> {
-    const options = this.options as PackageOptions;
-    const pkg = await packageJson.load(dirname(targetPath));
+  async validate (options: ValidateInput): Promise<GeneratorReportResult> {
+    // these are on two lines because i want to figure out if i care about eslint not letting me `let foo: boolean = false`
+    let failed: boolean;
+    failed = false;
+    const pkg = await packageJson.load(dirname(options.path));
+    const content = pkg.content as Content;
 
-    const errors = [];
+    const report = (x: GeneratorProblemSpec) => {
+      this.report(x);
+      failed = true;
+    };
 
-    if (options.main) {
-      if (pkg.content.main !== options.main) {
-        errors.push(`"main" expected to be "${options.main}" but found "${pkg.content.main ?? "undefined"}"`);
-      }
-    }
+    for (const [key, value] of Object.entries(this.options)) {
+      if (typeof value === "string" ||
+          typeof value === "number" ||
+          typeof value === "boolean" ||
+          value === null) {
 
-    if (options.license) {
-      if (pkg.content.license !== options.license) {
-        errors.push(`"license" expected to be "${options.license}" but found "${pkg.content.license ?? "undefined"}"`);
-      }
-    }
-
-    if (options.engines) {
-      for (const [key, value] of Object.entries(options.engines)) {
-        if (pkg.content.engines?.[key] !== value) {
-          errors.push(`"engines.${key}" expected to be "${value}" but found "${pkg.content.engines?.[key] ?? "undefined"}"`);
+        if (content[key] !== value) {
+          report({
+            field: key,
+            expected: value,
+            found: content[key],
+          });
         }
-      }
-    }
 
-    if (options.files) {
-      for (const file of options.files.append ?? []) {
-        if (!(pkg.content.files?.includes(file))) {
-          errors.push(`"files" is missing expected entry "${file}"`);
-        }
+        continue;
       }
 
-      for (const file of options.files.remove ?? []) {
-        if (pkg.content.files?.includes(file)) {
-          errors.push(`"files" found unexpected entry "${file}"`);
-        }
-      }
-    }
+      const arrayMutation = value as ArrayMutation;
+      if (arrayMutation.append || arrayMutation.remove) {
+        const {
+          append = [],
+          remove = [],
+        } = arrayMutation;
 
-    if (options.scripts) {
-      for (const [key, value] of Object.entries(options.scripts)) {
-        if (pkg.content.scripts?.[key] !== value) {
-          errors.push(`"scripts.${key}" expected to be "${value}" but found "${pkg.content.scripts?.[key] ?? "undefined"}"`);
-        }
-      }
-    }
-
-    for (const _field of dependencyProperties) {
-      const field = _field as keyof MutationObjects;
-      if (options[field]) {
-        // non-null assertion is safe because we check for truthiness above
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        for (const [key, value] of Object.entries(options[field]!)) {
-          const deps = {
-            ...pkg.content[field],
-          };
-
-          if (!(key in deps)) {
-            errors.push(`"${field}" is missing expected entry "${key}"`);
-          } else {
-            // non-null assertion is safe because the previous condition handles the cases
-            // where the dependency key or the dependency name properties are unset
-            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-            const currentRange = pkg.content[field]![key];
-            if (!semver.subset(currentRange, value)) {
-              errors.push(`"${field}.${key}" expected to be a subset of "${value}" but found "${currentRange}"`);
-            }
+        const current = (content[key] ?? []) as unknown[];
+        for (const name of append) {
+          if (!current.includes(name)) {
+            report({
+              field: key,
+              expected: name,
+            });
           }
         }
-      }
-    }
 
-    if (options.bundledDependencies) {
-      for (const bundle of options.bundledDependencies.append ?? []) {
-        if (!(pkg.content.bundledDependencies?.includes(bundle))) {
-          errors.push(`"bundledDependencies" is missing expected entry "${bundle}"`);
-        }
-      }
-
-      for (const bundle of options.bundledDependencies.remove ?? []) {
-        if (pkg.content.bundledDependencies?.includes(bundle)) {
-          errors.push(`"files" found unexpected entry "${bundle}"`);
-        }
-      }
-    }
-
-    if (options.peerDependenciesMeta) {
-      for (const [key, value] of Object.entries(options.peerDependenciesMeta)) {
-        if (!(key in (pkg.content.peerDependenciesMeta ?? {}))) {
-          errors.push(`"peerDependenciesMeta" is missing expected entry "${key}"`);
-        } else {
-          // non-null assertion is safe because the condition above covers the case
-          // where the peerDependenciesMeta key itself or the package key are missing
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          const currentMeta: { optional?: boolean } = pkg.content.peerDependenciesMeta![key];
-          const currentOptional = currentMeta.optional === true;
-          const proposedMeta: { optional?: boolean } = value;
-          const proposedOptional = proposedMeta.optional === true;
-          if (currentOptional !== proposedOptional) {
-            errors.push(`"peerDependenciesMeta.${key}.optional" expected to be "${proposedOptional.toString()}" but found "${currentOptional.toString()}"`);
+        for (const name of remove) {
+          if (current.includes(name)) {
+            report({
+              field: key,
+              found: name,
+            });
           }
         }
+
+        continue;
+      }
+
+      if (dependencyProperties.includes(key)) {
+        const current = (content[key] ?? {}) as Record<string, unknown>;
+        for (const [name, range] of Object.entries(value)) {
+          if (!(name in current)) {
+            report({
+              field: `${key}.${name}`,
+              expected: range,
+            });
+          } else if (!semver.subset(current[name] as string, range as string)) {
+            report({
+              field: `${key}.${name}`,
+              message: `expected to be a subset of "${range as string}" but found "${current[name] as string}"`,
+            });
+          }
+        }
+        continue;
+      }
+
+      if (key !== "removeDependencies") {
+        const current = (content[key] ?? {}) as Record<string, unknown>;
+        for (const [name, prop] of Object.entries(value)) {
+          if (!(name in current)) {
+            report({
+              field: `${key}.${name}`,
+              expected: prop,
+            });
+          } else if (!isDeepStrictEqual(current[name], prop)) {
+            report({
+              field: `${key}.${name}`,
+              expected: prop,
+              found: current[name],
+            });
+          }
+        }
+        continue;
       }
     }
 
-    if (options.removeDependencies) {
-      for (const name of options.removeDependencies) {
-        if (pkg.content.bundledDependencies?.includes(name)) {
-          errors.push(`"bundledDependencies" includes unwanted entry "${name}"`);
+    if (Array.isArray(this.options.removeDependencies)) {
+      for (const name of this.options.removeDependencies) {
+        for (const key of dependencyProperties) {
+          const current = (content[key] ?? {}) as Record<string, unknown>;
+          if (name in current) {
+            report({
+              field: key,
+              found: name,
+            });
+          }
         }
 
-        if (name in (pkg.content.dependencies ?? {})) {
-          errors.push(`"dependencies" includes unwanted entry "${name}"`);
+        const bundledDeps = (content.bundledDependencies ?? []) as unknown[];
+        if (bundledDeps.includes(name)) {
+          report({
+            field: "bundledDependencies",
+            found: name,
+          });
         }
 
-        if (name in (pkg.content.devDependencies ?? {})) {
-          errors.push(`"devDependencies" includes unwanted entry "${name}"`);
-        }
-
-        if (name in (pkg.content.optionalDependencies ?? {})) {
-          errors.push(`"optionalDependencies" includes unwanted entry "${name}"`);
-        }
-
-        if (name in (pkg.content.peerDependencies ?? {})) {
-          errors.push(`"peerDependencies" includes unwanted entry "${name}"`);
-        }
-
-        if (name in (pkg.content.peerDependenciesMeta ?? {})) {
-          errors.push(`"peerDependenciesMeta" includes unwanted entry "${name}"`);
+        const peerMeta = (content.peerDependenciesMeta ?? {}) as Record<string, unknown>;
+        if (name in peerMeta) {
+          report({
+            field: "peerDependenciesMeta",
+            found: name,
+          });
         }
       }
     }
 
-    return errors.length
-      ? this.fail(...errors)
-      : this.pass();
+    // rule disabled because typescript doesn't like the pattern of wrapping this.report in a function
+    // in order to set the failed flag, but i'm lazy and it's how i want to do it so i'll deal with this later
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    return failed ? GeneratorReportResult.Fail : GeneratorReportResult.Pass;
   }
 }

@@ -1,10 +1,11 @@
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { isDeepStrictEqual } from "node:util";
 import parseJson, { Indent, Newline } from "json-parse-even-better-errors";
 
-import { Generator, type GeneratorOptions, type GeneratorResults } from "./abstract";
+import { Generator, type GenerateInput, type ValidateInput } from "./abstract";
+import { GeneratorReportResult } from "./report";
 
-export interface JsonOptions extends GeneratorOptions {
+export interface JsonOptions {
   set?: Record<string, unknown>;
   delete?: string[];
   append?: Record<string, unknown[]>;
@@ -47,37 +48,42 @@ function deepGet (obj: JsonObject, key: string) {
   return current[final];
 }
 
-export class JsonGenerator extends Generator {
-  async apply (targetPath: string): Promise<GeneratorResults> {
-    let fileContents;
+export class JsonGenerator extends Generator<JsonOptions> {
+  async generate (options: GenerateInput): Promise<string> {
+    let existingContent: string;
     try {
-      fileContents = await readFile(targetPath, { encoding: "utf8" });
-    } catch (err) {
-      fileContents = "{}";
+      existingContent = await readFile(options.path, { encoding: "utf8" });
+    } catch (_err) {
+      const err = _err as Error & { code?: string };
+      // istanbul ignore next - no need to cover re-throwing
+      if (err.code !== "ENOENT") {
+        throw err;
+      }
+
+      existingContent = "{}";
     }
 
-    const parsedContents = parseJson(fileContents);
-    const options = this.options as JsonOptions;
+    const existingObject = parseJson(existingContent);
 
     // istanbul ignore else - don't care
-    if (options.set) {
-      for (const [key, value] of Object.entries(options.set)) {
-        deepSet(parsedContents, key, value);
+    if (this.options.set) {
+      for (const [key, value] of Object.entries(this.options.set)) {
+        deepSet(existingObject, key, value);
       }
     }
 
     // istanbul ignore else - don't care
-    if (options.delete) {
-      for (const key of options.delete) {
+    if (this.options.delete) {
+      for (const key of this.options.delete) {
         // setting the key to undefined means it will be stripped when we stringify it later
-        deepSet(parsedContents, key, undefined);
+        deepSet(existingObject, key, undefined);
       }
     }
 
     // istanbul ignore else - don't care
-    if (options.append) {
-      for (const [key, values] of Object.entries(options.append)) {
-        const existingField = deepGet(parsedContents, key);
+    if (this.options.append) {
+      for (const [key, values] of Object.entries(this.options.append)) {
+        const existingField = deepGet(existingObject, key);
         const arrayContents: unknown[] = existingField && Array.isArray(existingField)
           ? existingField
           : [];
@@ -88,14 +94,14 @@ export class JsonGenerator extends Generator {
             arrayContents.push(value);
           }
         }
-        deepSet(parsedContents, key, arrayContents);
+        deepSet(existingObject, key, arrayContents);
       }
     }
 
     // istanbul ignore else - don't care
-    if (options.remove) {
-      for (const [key, values] of Object.entries(options.remove)) {
-        const existingField = deepGet(parsedContents, key);
+    if (this.options.remove) {
+      for (const [key, values] of Object.entries(this.options.remove)) {
+        const existingField = deepGet(existingObject, key);
         const arrayContents: unknown[] = existingField && Array.isArray(existingField)
           ? existingField
           : [];
@@ -106,72 +112,68 @@ export class JsonGenerator extends Generator {
             arrayContents.splice(arrayContents.indexOf(existingMatch), 1);
           }
         }
-        deepSet(parsedContents, key, arrayContents);
+        deepSet(existingObject, key, arrayContents);
       }
     }
 
     // eslint disabled for these two lines because the types indicate the values are required,
     // however in practice they do sometimes have a value of undefined
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    const indentString = parsedContents[Indent] ?? "  ";
+    const indentString = existingObject[Indent] ?? "  ";
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    const newlineString = parsedContents[Newline] ?? "\n";
-    const stringContents = JSON.stringify(parsedContents, null, indentString)
+    const newlineString = existingObject[Newline] ?? "\n";
+    const stringContents = JSON.stringify(existingObject, null, indentString)
       .replace(/\n/g, newlineString) + newlineString;
 
-    await writeFile(targetPath, stringContents);
-
-    return this.pass();
+    return stringContents;
   }
 
-  async verify (targetPath: string): Promise<GeneratorResults> {
-    const failures: string[] = [];
+  validate (options: ValidateInput): Promise<GeneratorReportResult> {
+    let failed = false;
+    const existingObject = parseJson(options.found);
 
-    let fileContents;
-    try {
-      fileContents = await readFile(targetPath, { encoding: "utf8" });
-    } catch (err) {
-      const { code } = err as { code: string };
-      // istanbul ignore next - no need to test passthrough errors
-      if (code !== "ENOENT") {
-        return this.fail(code);
-      }
-
-      return this.fail("file missing");
-    }
-
-    let parsedContents;
-    try {
-      parsedContents = parseJson(fileContents);
-    } catch (err) {
-      return this.fail("invalid json");
-    }
-
-    const options = this.options as JsonOptions;
-    if (options.set) {
-      for (const [key, value] of Object.entries(options.set)) {
-        const deepValue = deepGet(parsedContents, key);
+    if (this.options.set) {
+      for (const [key, value] of Object.entries(this.options.set)) {
+        const deepValue = deepGet(existingObject, key);
         if (deepValue === undefined) {
-          failures.push(`"${key}" missing`);
+          this.report({
+            field: key,
+            expected: value,
+          });
+          failed = true;
         } else if (deepValue !== value) {
-          failures.push(`"${key}" set to ${JSON.stringify(deepValue)} but expected ${JSON.stringify(value)}`);
+          this.report({
+            field: key,
+            expected: value,
+            found: deepValue,
+          });
+          failed = true;
         }
       }
     }
 
-    if (options.delete) {
-      for (const key of options.delete) {
-        if (deepGet(parsedContents, key)) {
-          failures.push(`"${key}" is present and should be deleted`);
+    if (this.options.delete) {
+      for (const key of this.options.delete) {
+      const deepValue = deepGet(existingObject, key);
+        if (deepValue) {
+          this.report({
+            field: key,
+            found: deepValue,
+          });
+          failed = true;
         }
       }
     }
     
-    if (options.append) {
-      for (const [key, values] of Object.entries(options.append)) {
-        const existingField = deepGet(parsedContents, key);
+    if (this.options.append) {
+      for (const [key, values] of Object.entries(this.options.append)) {
+        const existingField = deepGet(existingObject, key);
         if (!existingField || !Array.isArray(existingField)) {
-          failures.push(`"${key}" is expected to be an array`);
+          this.report({
+            field: key,
+            message: "should be an array",
+          });
+          failed = true;
           continue;
         }
 
@@ -179,17 +181,25 @@ export class JsonGenerator extends Generator {
         for (const value of values) {
           const existingMatch = arrayContents.find((item) => isDeepStrictEqual(value, item));
           if (!existingMatch) {
-            failures.push(`"${key}" is missing expected value ${JSON.stringify(value)}`);
+            this.report({
+              field: key,
+              expected: value,
+            });
+            failed = true;
           }
         }
       }
     }
 
-    if (options.remove) {
-      for (const [key, values] of Object.entries(options.remove)) {
-        const existingField = deepGet(parsedContents, key);
+    if (this.options.remove) {
+      for (const [key, values] of Object.entries(this.options.remove)) {
+        const existingField = deepGet(existingObject, key);
         if (!existingField || !Array.isArray(existingField)) {
-          failures.push(`"${key}" is expected to be an array`);
+          this.report({
+            field: key,
+            message: "should be an array",
+          });
+          failed = true;
           continue;
         }
 
@@ -197,15 +207,17 @@ export class JsonGenerator extends Generator {
         for (const value of values) {
           const existingMatch = arrayContents.find((item) => isDeepStrictEqual(value, item));
           if (existingMatch) {
-            failures.push(`"${key}" contains unexpected value "${value as string}"`);
+            this.report({
+              field: key,
+              found: value,
+            });
+            failed = true;
           }
         }
       }
     }
 
-    return failures.length
-      ? this.fail(...failures)
-      : this.pass();
+    return Promise.resolve(failed ? GeneratorReportResult.Fail : GeneratorReportResult.Pass);
   }
 }
 

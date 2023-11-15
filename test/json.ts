@@ -1,9 +1,10 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import t from "tap";
 
-import { json, applySkeleton, verifySkeleton } from "../lib";
-import type { Config } from "../lib/config";
+import t from "tap";
+import parseJson from "json-parse-even-better-errors";
+
+import { type Config, json, applySkeleton, verifySkeleton } from "../lib";
 
 void t.test("can modify json", async (t) => {
   const root = t.testdir({
@@ -51,26 +52,30 @@ void t.test("can modify json", async (t) => {
   };
 
   const initialVerifyResult = await verifySkeleton(config);
-
   t.hasStrict(initialVerifyResult, {
-    "foo.json": {
-      result: "fail",
-      messages: ['"foo" set to "bar" but expected "baz"'],
-    },
-    "extra.json": {
-      result: "fail",
-      messages: ["file missing"],
+    exitCode: 1,
+    reports: {
+      "foo.json": {
+        result: "fail",
+        problems: [{
+          field: "foo",
+          expected: "baz",
+          found: "bar",
+        }],
+      },
+      "extra.json": {
+        result: "fail",
+        problems: [{
+          message: "file missing",
+        }],
+      },
     },
   });
 
   const applyResult = await applySkeleton(config);
   t.hasStrict(applyResult, {
-    "foo.json": {
-      result: "pass",
-    },
-    "extra.json": {
-      result: "pass",
-    },
+    exitCode: 0,
+    reports: {},
   });
 
   const rawFoo = await readFile(jsonPath, { encoding: "utf8" });
@@ -94,11 +99,14 @@ void t.test("can modify json", async (t) => {
 
   const secondVerifyResult = await verifySkeleton(config);
   t.hasStrict(secondVerifyResult, {
-    "foo.json": {
-      result: "pass",
-    },
-    "extra.json": {
-      result: "pass",
+    exitCode: 0,
+    reports: {
+      "foo.json": {
+        result: "pass",
+      },
+      "extra.json": {
+        result: "pass",
+      },
     },
   });
 });
@@ -120,11 +128,23 @@ void t.test("unparseable json shows as invalid", async (t) => {
     },
   };
 
+  let parseError = "UNREACHABLE";
+  try {
+    parseJson("{ lol nope }");
+  } catch (err) {
+    parseError = (err as Error).message;
+  }
+
   const result = await verifySkeleton(config);
   t.hasStrict(result, {
-    "foo.json": {
-      result: "fail",
-      messages: ["invalid json"],
+    exitCode: 1,
+    reports: {
+      "foo.json": {
+        result: "fail",
+        problems: [{
+          message: parseError,
+        }],
+      },
     },
   });
 });
@@ -148,9 +168,15 @@ void t.test("missing property shows as invalid", async (t) => {
 
   const result = await verifySkeleton(config);
   t.hasStrict(result, {
-    "foo.json": {
-      result: "fail",
-      messages: ['"foo" missing'],
+    exitCode: 1,
+    reports: {
+      "foo.json": {
+        result: "fail",
+        problems: [{
+          field: "foo",
+          expected: "bar",
+        }],
+      },
     },
   });
 });
@@ -174,9 +200,15 @@ void t.test("a deleted key being present is invalid", async (t) => {
 
   const result = await verifySkeleton(config);
   t.hasStrict(result, {
-    "foo.json": {
-      result: "fail",
-      messages: ['"foo" is present and should be deleted'],
+    exitCode: 1,
+    reports: {
+      "foo.json": {
+        result: "fail",
+        problems: [{
+          field: "foo",
+          found: "bar",
+        }],
+      },
     },
   });
 });
@@ -222,17 +254,23 @@ void t.test("can set a deep key", async (t) => {
 
   const verifyResult = await verifySkeleton(config);
   t.hasStrict(verifyResult, {
-    "foo.json": {
-      result: "fail",
-      messages: ['"present.field" set to "toast" but expected "test"'],
+    exitCode: 1,
+    reports: {
+      "foo.json": {
+        result: "fail",
+        problems: [{
+          field: "present.field",
+          expected: "test",
+          found: "toast",
+        }],
+      },
     },
   });
 
   const result = await applySkeleton(config);
   t.hasStrict(result, {
-    "foo.json": {
-      result: "pass",
-    },
+    exitCode: 0,
+    reports: {},
   });
 
   const fileContents = await readFile(join(root, "foo.json"), { encoding: "utf8" });
