@@ -102,7 +102,7 @@ export class PackageGenerator extends Generator<PackageOptions> {
     if (Array.isArray(this.options.removeDependencies)) {
       for (const name of this.options.removeDependencies) {
         for (const key of dependencyProperties) {
-          // istanbul ignore next - defense in depth
+          /* c8 ignore next 3 - defense in depth */
           const current = (key in updateRequest
             ? (updateRequest[key] ?? {})
             : (content[key] ?? {})
@@ -110,7 +110,7 @@ export class PackageGenerator extends Generator<PackageOptions> {
 
           if (name in current) {
             dependenciesModified = true;
-          // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+            // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
             delete current[name];
             updateRequest[key] = current;
           }
