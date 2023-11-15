@@ -49,10 +49,10 @@ export class PackageGenerator extends Generator<PackageOptions> {
         } = arrayMutation;
 
         const current = content[key] ?? [];
-        const replacement: unknown[] = [
+        const replacement: unknown[] = Array.from(new Set([
           ...current as unknown[],
           ...append,
-        ].filter((item) => !remove.includes(item));
+        ])).filter((item) => !remove.includes(item));
 
         if (key === "bundledDependencies") {
           dependenciesModified = true;

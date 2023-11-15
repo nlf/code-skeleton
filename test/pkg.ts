@@ -155,6 +155,20 @@ void t.test("can add fields to package.json", async (t) => {
     },
   });
 
+  const secondApplyResult = await applySkeleton(config);
+  t.hasStrict(secondApplyResult, {
+    exitCode: 0,
+    reports: {
+      "package.json": {
+        result: "pass",
+      },
+    },
+  });
+
+  const secondRawPkg = await readFile(join(root, "package.json"), { encoding: "utf8" });
+  const secondActualPkg: unknown = JSON.parse(secondRawPkg);
+  t.same(actualPkg, secondActualPkg, "second apply makes no changes");
+
   const secondVerifyResult = await verifySkeleton(config);
   t.hasStrict(secondVerifyResult, {
     exitCode: 0,
