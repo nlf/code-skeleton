@@ -2,7 +2,7 @@ import { join } from "node:path";
 import ansiColors from "ansi-colors";
 import colorSupport from "color-support";
 const colorSupported = colorSupport();
-/* c8 ignore next 3 - no need to test this */
+/* istanbul ignore next - no need to test this */
 ansiColors.enabled = typeof colorSupported === "boolean"
   ? colorSupported
   : colorSupported.hasBasic;

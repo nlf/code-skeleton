@@ -28,7 +28,7 @@
   "author": "Nathan LaFreniere <nlf@nlf.sh>",
   "license": "ISC",
   "devDependencies": {
-    "@code4rena/skeleton": "1.0.5",
+    "@code4rena/skeleton": "1.0.9",
     "@tsconfig/node18": "^18.2.0",
     "@types/color-support": "^1.1.1",
     "@types/node": "^18.16.16",
@@ -40,7 +40,7 @@
     "@typescript-eslint/parser": "^5.59.9",
     "eslint": "^8.42.0",
     "spawk": "^1.8.0",
-    "tap": "^18.5.8",
+    "tap": "^16.0.0",
     "ts-node": "^10.9.1",
     "typescript": "~5.0.0"
   },
@@ -60,5 +60,10 @@
       "dogfood": true,
       "library": true
     }
+  },
+  "//": "This file is partially managed by code-skeleton. Changes may be overwritten.",
+  "tap": {
+    "coverage": true,
+    "ts": true
   }
 }

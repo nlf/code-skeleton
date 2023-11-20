@@ -100,7 +100,7 @@ export class PackageGenerator extends Generator<PackageOptions> {
     if (Array.isArray(this.options.removeDependencies)) {
       for (const name of this.options.removeDependencies) {
         for (const key of dependencyProperties) {
-          /* c8 ignore next 3 - defense in depth */
+          /* istanbul ignore next - defense in depth */
           const current = (key in updateRequest
             ? (updateRequest[key] ?? {})
             : (content[key] ?? {})

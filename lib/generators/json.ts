@@ -54,7 +54,7 @@ export class JsonGenerator extends Generator<JsonOptions> {
       existingContent = await readFile(options.path, { encoding: "utf8" });
     } catch (_err) {
       const err = _err as Error & { code?: string };
-      /* c8 ignore next 3 - no need to cover re-throwing */
+      /* istanbul ignore next - no need to cover re-throwing */
       if (err.code !== "ENOENT") {
         throw err;
       }
