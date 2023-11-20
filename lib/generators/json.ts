@@ -3,7 +3,6 @@ import { isDeepStrictEqual } from "node:util";
 import parseJson, { Indent, Newline } from "json-parse-even-better-errors";
 
 import { Generator, type GenerateInput, type ValidateInput } from "./abstract";
-import { GeneratorReportResult } from "./report";
 
 export interface JsonOptions {
   set?: Record<string, unknown>;
@@ -55,7 +54,7 @@ export class JsonGenerator extends Generator<JsonOptions> {
       existingContent = await readFile(options.path, { encoding: "utf8" });
     } catch (_err) {
       const err = _err as Error & { code?: string };
-      /* c8 ignore next 3 - no need to cover re-throwing */
+      /* istanbul ignore next - no need to cover re-throwing */
       if (err.code !== "ENOENT") {
         throw err;
       }
@@ -128,8 +127,7 @@ export class JsonGenerator extends Generator<JsonOptions> {
     return stringContents;
   }
 
-  validate (options: ValidateInput): Promise<GeneratorReportResult> {
-    let failed = false;
+  validate (options: ValidateInput): Promise<void> {
     const existingObject = parseJson(options.found);
 
     if (this.options.set) {
@@ -140,31 +138,28 @@ export class JsonGenerator extends Generator<JsonOptions> {
             field: key,
             expected: value,
           });
-          failed = true;
         } else if (deepValue !== value) {
           this.report({
             field: key,
             expected: value,
             found: deepValue,
           });
-          failed = true;
         }
       }
     }
 
     if (this.options.delete) {
       for (const key of this.options.delete) {
-      const deepValue = deepGet(existingObject, key);
+        const deepValue = deepGet(existingObject, key);
         if (deepValue) {
           this.report({
             field: key,
             found: deepValue,
           });
-          failed = true;
         }
       }
     }
-    
+
     if (this.options.append) {
       for (const [key, values] of Object.entries(this.options.append)) {
         const existingField = deepGet(existingObject, key);
@@ -173,7 +168,6 @@ export class JsonGenerator extends Generator<JsonOptions> {
             field: key,
             message: "should be an array",
           });
-          failed = true;
           continue;
         }
 
@@ -185,7 +179,6 @@ export class JsonGenerator extends Generator<JsonOptions> {
               field: key,
               expected: value,
             });
-            failed = true;
           }
         }
       }
@@ -199,7 +192,6 @@ export class JsonGenerator extends Generator<JsonOptions> {
             field: key,
             message: "should be an array",
           });
-          failed = true;
           continue;
         }
 
@@ -211,13 +203,12 @@ export class JsonGenerator extends Generator<JsonOptions> {
               field: key,
               found: value,
             });
-            failed = true;
           }
         }
       }
     }
 
-    return Promise.resolve(failed ? GeneratorReportResult.Fail : GeneratorReportResult.Pass);
+    return Promise.resolve();
   }
 }
 

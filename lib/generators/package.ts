@@ -5,8 +5,6 @@ import { Indent, Newline } from "json-parse-even-better-errors";
 import semver from "semver";
 
 import { Generator, type GenerateInput, type ValidateInput } from "./abstract";
-import { type GeneratorProblemSpec } from "./problem";
-import { GeneratorReportResult } from "./report";
 
 // eslint ignored here, this needs to be an interface to avoid self references
 // eslint-disable-next-line @typescript-eslint/consistent-indexed-object-style
@@ -102,7 +100,7 @@ export class PackageGenerator extends Generator<PackageOptions> {
     if (Array.isArray(this.options.removeDependencies)) {
       for (const name of this.options.removeDependencies) {
         for (const key of dependencyProperties) {
-          /* c8 ignore next 3 - defense in depth */
+          /* istanbul ignore next - defense in depth */
           const current = (key in updateRequest
             ? (updateRequest[key] ?? {})
             : (content[key] ?? {})
@@ -168,17 +166,9 @@ export class PackageGenerator extends Generator<PackageOptions> {
     return fileContent;
   }
 
-  async validate (options: ValidateInput): Promise<GeneratorReportResult> {
-    // these are on two lines because i want to figure out if i care about eslint not letting me `let foo: boolean = false`
-    let failed: boolean;
-    failed = false;
+  async validate (options: ValidateInput): Promise<void> {
     const pkg = await packageJson.load(dirname(options.path));
     const content = pkg.content as Content;
-
-    const report = (x: GeneratorProblemSpec) => {
-      this.report(x);
-      failed = true;
-    };
 
     for (const [key, value] of Object.entries(this.options)) {
       if (typeof value === "string" ||
@@ -187,7 +177,7 @@ export class PackageGenerator extends Generator<PackageOptions> {
           value === null) {
 
         if (content[key] !== value) {
-          report({
+          this.report({
             field: key,
             expected: value,
             found: content[key],
@@ -207,7 +197,7 @@ export class PackageGenerator extends Generator<PackageOptions> {
         const current = (content[key] ?? []) as unknown[];
         for (const name of append) {
           if (!current.includes(name)) {
-            report({
+            this.report({
               field: key,
               expected: name,
             });
@@ -216,7 +206,7 @@ export class PackageGenerator extends Generator<PackageOptions> {
 
         for (const name of remove) {
           if (current.includes(name)) {
-            report({
+            this.report({
               field: key,
               found: name,
             });
@@ -230,12 +220,12 @@ export class PackageGenerator extends Generator<PackageOptions> {
         const current = (content[key] ?? {}) as Record<string, unknown>;
         for (const [name, range] of Object.entries(value)) {
           if (!(name in current)) {
-            report({
+            this.report({
               field: `${key}.${name}`,
               expected: range,
             });
           } else if (!semver.subset(current[name] as string, range as string)) {
-            report({
+            this.report({
               field: `${key}.${name}`,
               message: `expected to be a subset of "${range as string}" but found "${current[name] as string}"`,
             });
@@ -248,12 +238,12 @@ export class PackageGenerator extends Generator<PackageOptions> {
         const current = (content[key] ?? {}) as Record<string, unknown>;
         for (const [name, prop] of Object.entries(value)) {
           if (!(name in current)) {
-            report({
+            this.report({
               field: `${key}.${name}`,
               expected: prop,
             });
           } else if (!isDeepStrictEqual(current[name], prop)) {
-            report({
+            this.report({
               field: `${key}.${name}`,
               expected: prop,
               found: current[name],
@@ -269,7 +259,7 @@ export class PackageGenerator extends Generator<PackageOptions> {
         for (const key of dependencyProperties) {
           const current = (content[key] ?? {}) as Record<string, unknown>;
           if (name in current) {
-            report({
+            this.report({
               field: key,
               found: name,
             });
@@ -278,7 +268,7 @@ export class PackageGenerator extends Generator<PackageOptions> {
 
         const bundledDeps = (content.bundledDependencies ?? []) as unknown[];
         if (bundledDeps.includes(name)) {
-          report({
+          this.report({
             field: "bundledDependencies",
             found: name,
           });
@@ -286,17 +276,12 @@ export class PackageGenerator extends Generator<PackageOptions> {
 
         const peerMeta = (content.peerDependenciesMeta ?? {}) as Record<string, unknown>;
         if (name in peerMeta) {
-          report({
+          this.report({
             field: "peerDependenciesMeta",
             found: name,
           });
         }
       }
     }
-
-    // rule disabled because typescript doesn't like the pattern of wrapping this.report in a function
-    // in order to set the failed flag, but i'm lazy and it's how i want to do it so i'll deal with this later
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-    return failed ? GeneratorReportResult.Fail : GeneratorReportResult.Pass;
   }
 }
