@@ -5,8 +5,18 @@ export enum GeneratorReportResult {
   Fail = "fail",
 }
 
-export interface GeneratorReport {
-  result: GeneratorReportResult;
-  problems: GeneratorProblem[];
-  messages: string[];
+export class GeneratorReport {
+  problems: GeneratorProblem[] = [];
+  messages: string[] = [];
+
+  get result () {
+    return this.problems.length > 0
+      ? GeneratorReportResult.Fail
+      : GeneratorReportResult.Pass;
+  }
+
+  reset () {
+    this.problems.length = 0;
+    this.messages.length = 0;
+  }
 }

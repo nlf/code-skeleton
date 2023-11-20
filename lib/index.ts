@@ -7,7 +7,7 @@ ansiColors.enabled = typeof colorSupported === "boolean"
   ? colorSupported
   : colorSupported.hasBasic;
 
-import { GeneratorProblem, type GeneratorReport, GeneratorReportResult } from "./generators";
+import { GeneratorProblem, GeneratorReport, GeneratorReportResult } from "./generators";
 import type { Config } from "./config";
 
 export interface SkeletonResults {
@@ -65,16 +65,11 @@ export async function applySkeleton (config: Config) {
     } catch (_err) {
       const err = _err as Error & { code?: string };
       result.exitCode = 1;
-      result.reports[targetPath] = {
-        result: GeneratorReportResult.Fail,
-        problems: [
-          new GeneratorProblem({
-            code: err.code,
-            message: err.message,
-          }),
-        ],
-        messages: [],
-      };
+      result.reports[targetPath] = new GeneratorReport();
+      result.reports[targetPath].problems.push(new GeneratorProblem({
+        code: err.code,
+        message: err.message,
+      }));
       fileEnd = logGroup(`${targetPath}${padding}${ansiColors.red("FAILED")}`, config);
       for (const problem of result.reports[targetPath].problems) {
         logVerbose(problem.toString(), config);

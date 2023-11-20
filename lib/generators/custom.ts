@@ -22,25 +22,19 @@ export class CustomGenerator extends Generator<CustomOptions> {
     return await this.options.generate!(input, this.options);
   }
 
-  async validate (input: ValidateInput): Promise<GeneratorReportResult> {
+  async validate (input: ValidateInput): Promise<void> {
     if (!this.options.validate) {
       return super.validate(input);
     }
 
-    let result: GeneratorReportResult;
     try {
-      // rule disabled, constructor verifies presence of the function
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      result = await this.options.validate(input, this.options, this.report.bind(this));
+      await this.options.validate(input, this.options, this.report.bind(this));
     } catch (_err) {
       const err = _err as Error & { code?: string };
       this.report({
         code: err.code,
         message: err.message,
       });
-      result = GeneratorReportResult.Fail;
     }
-
-    return result;
   }
 }

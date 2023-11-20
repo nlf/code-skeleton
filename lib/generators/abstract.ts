@@ -2,7 +2,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 
 import { GeneratorProblem, type GeneratorProblemSpec } from "./problem";
-import { type GeneratorReport, GeneratorReportResult } from "./report";
+import { GeneratorReport } from "./report";
 
 export interface GenerateInput {
   path: string;
@@ -15,11 +15,7 @@ export interface ValidateInput {
 
 export abstract class Generator<TOptions = unknown> {
   options: TOptions;
-  #report: GeneratorReport = {
-    result: GeneratorReportResult.Fail,
-    problems: [],
-    messages: [],
-  };
+  #report: GeneratorReport = new GeneratorReport();
 
   constructor (options: TOptions) {
     this.options = options;
@@ -34,17 +30,19 @@ export abstract class Generator<TOptions = unknown> {
   }
 
   async apply (targetPath: string): Promise<GeneratorReport> {
+    this.#report.reset();
+
     const result = await this.generate({
       path: targetPath,
     });
     await mkdir(dirname(targetPath), { recursive: true });
     await writeFile(targetPath, result);
-    this.#report.result = GeneratorReportResult.Pass;
     return this.#report;
   }
 
   async verify (targetPath: string): Promise<GeneratorReport> {
-    this.#report.problems.length = 0;
+    this.#report.reset();
+
     let found: string;
 
     try {
@@ -57,33 +55,30 @@ export abstract class Generator<TOptions = unknown> {
         this.report({
           message: "file missing",
         });
-        this.#report.result = GeneratorReportResult.Fail;
         return this.#report;
       } else {
         this.report({
           code: err.code,
           message: err.message,
         });
-        this.#report.result = GeneratorReportResult.Fail;
         return this.#report;
       }
     }
 
     try {
-      this.#report.result = await this.validate({
+      await this.validate({
         path: targetPath,
         found,
       });
     } catch (_err) {
       const err = _err as Error;
       this.report({ message: err.message });
-      this.#report.result = GeneratorReportResult.Fail;
     }
 
     return this.#report;
   }
 
-  async validate (options: ValidateInput): Promise<GeneratorReportResult> {
+  async validate (options: ValidateInput): Promise<void> {
     const expected = await this.generate({
       path: options.path,
     });
@@ -93,11 +88,7 @@ export abstract class Generator<TOptions = unknown> {
         expected,
         found: options.found,
       });
-
-      return GeneratorReportResult.Fail;
     }
-
-    return GeneratorReportResult.Pass;
   }
 
   abstract generate (options: GenerateInput): Promise<string>;
