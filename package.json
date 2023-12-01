@@ -10,12 +10,13 @@
     "clean": "./scripts/clean.ts",
     "prelint": "tsc --noEmit",
     "lint": "eslint .",
-    "prepack": "tsc --project tsconfig.build.json",
+    "prepack": "tsc --project tsconfig.build.json && npm run update-shebang",
     "test": "tap",
     "posttest": "npm run lint",
     "postlint": "npm run skeleton:verify",
     "skeleton:apply": "./bin/code-skeleton.ts apply",
-    "skeleton:verify": "./bin/code-skeleton.ts verify"
+    "skeleton:verify": "./bin/code-skeleton.ts verify",
+    "update-shebang": "./scripts/update-shebang.ts"
   },
   "files": [
     "bin/**/*.js",
@@ -28,7 +29,7 @@
   "author": "Nathan LaFreniere <nlf@nlf.sh>",
   "license": "ISC",
   "devDependencies": {
-    "@code4rena/skeleton": "1.0.9",
+    "@code4rena/skeleton": "1.1.0",
     "@tsconfig/node18": "^18.2.0",
     "@types/color-support": "^1.1.1",
     "@types/node": "^18.16.16",
@@ -36,8 +37,8 @@
     "@types/npmcli__promise-spawn": "^6.0.0",
     "@types/tap": "^15.0.8",
     "@types/yargs": "^17.0.24",
-    "@typescript-eslint/eslint-plugin": "^5.59.9",
-    "@typescript-eslint/parser": "^5.59.9",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
     "eslint": "^8.42.0",
     "spawk": "^1.8.0",
     "tap": "^16.0.0",
