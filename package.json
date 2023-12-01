@@ -1,6 +1,6 @@
 {
   "name": "code-skeleton",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "a framework for creating versioned project templates",
   "main": "lib/index.js",
   "bin": {
