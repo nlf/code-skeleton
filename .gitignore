@@ -9,6 +9,7 @@
 !/.github/
 !/.gitignore
 !/.npmrc
+!/.prettierrc.json
 !/Dockerfile
 !/bin/
 !/CHANGELOG*
@@ -16,6 +17,7 @@
 !/knexfile.ts
 !/lib/
 !/migrations/
+!/.nomad/
 !/LICENSE*
 !/package.json
 !/README*
@@ -24,6 +26,7 @@
 !/tap-snapshots/
 !/test/
 !/tsconfig*.json
+!/heroku.yml
 
 # re-ignore typescript output artifacts
 /knexfile.js

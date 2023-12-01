@@ -47,7 +47,7 @@ void t.test("apply", async (t) => {
     const codeSkeleton = join(root, "code-skeleton");
 
     // copy the relevant content to the temp dir
-    for (const source of ["bin", "lib", "package.json", "tsconfig.json", "tsconfig.build.json", ".gitignore"]) {
+    for (const source of ["bin", "lib", "scripts", "package.json", "tsconfig.json", "tsconfig.build.json", ".gitignore"]) {
       await cp(join(dirname(__dirname), source), join(codeSkeleton, source), { recursive: true });
     }
 
